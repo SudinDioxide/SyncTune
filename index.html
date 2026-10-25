@@ -2941,6 +2941,11 @@
                 audioCtx.resume();
               }
 
+              // STOP local audioElement to completely prevent any audio overlap
+              if (audioElement) {
+                audioElement.pause();
+              }
+
               // 1. Guaranteed unmuted audio playback on iOS, Android, and Desktop
               const rAudio = getOrCreateRemoteAudioElement();
               rAudio.srcObject = remoteStream;
@@ -3307,12 +3312,22 @@
                   format: data.trackMeta.format,
                   duration: data.trackMeta.duration,
                   coverUrl: data.trackMeta.coverUrl,
+                  url: data.trackMeta.url || null,
+                  isCloud: !!data.trackMeta.isCloud,
                   isRemote: true,
                   originPeerId: data.originPeerId
                 });
                 renderPlaylistUI();
                 updateStorageStatus();
-                showToast(`🎵 Outsider song added: "${data.trackMeta.title}"`, 'info');
+                showToast(`🎵 Added to queue: "${data.trackMeta.title}"`, 'info');
+
+                // Sequence-based playback:
+                // Only auto-play if player is completely idle / stopped (never interrupt active songs)
+                const isIdle = !isPlaying && (currentTrackIndex === -1 || (audioElement.paused && (!remoteAudioElement || remoteAudioElement.paused)));
+                if (isIdle) {
+                  const newIdx = playlist.length - 1;
+                  playTrackAtIndex(newIdx, isHost);
+                }
               }
             }
             break;
@@ -3472,19 +3487,28 @@
           audioCtx.resume();
         }
 
-        // If receiving WebRTC stream from host, play remote stream audio
         const rAudio = getOrCreateRemoteAudioElement();
-        if (rAudio && rAudio.srcObject) {
+        const isReceivingStream = !!(rAudio && rAudio.srcObject && !isHost);
+
+        // MUTUAL EXCLUSIVITY: Play either remote stream OR direct audioElement, NEVER BOTH!
+        if (isReceivingStream) {
+          // Playing remote stream: stop local audioElement completely to prevent overlap
+          if (audioElement) {
+            audioElement.pause();
+          }
           rAudio.play().then(() => {
             hideAudioUnlockOverlay();
           }).catch(err => {
             console.log('Remote audio waiting for interaction:', err);
             showAudioUnlockOverlay();
           });
-        }
+        } else if (audioElement && audioElement.src) {
+          // Playing direct file/cloud: stop remote stream completely
+          if (rAudio) {
+            rAudio.pause();
+            try { rAudio.srcObject = null; } catch(e) {}
+          }
 
-        // If local audio file is loaded, synchronize timestamp and play
-        if (audioElement && audioElement.src) {
           if (hostTimestamp) {
             const elapsed = (performance.now() - hostTimestamp - clockOffset) / 1000;
             const adjustedTime = Math.max(0, targetTime + Math.max(0, elapsed));
@@ -3911,6 +3935,12 @@
       function loadTrackIntoPlayer(track, autoPlay = true) {
         initAudioContext();
 
+        // Stop and clear remote stream audio completely to prevent overlapping
+        if (remoteAudioElement) {
+          remoteAudioElement.pause();
+          try { remoteAudioElement.srcObject = null; } catch(e) {}
+        }
+
         let audioSrc = '';
         if (track.isDemo) {
           audioSrc = demoAudioBlobUrl || '';
@@ -3969,6 +3999,16 @@
 
       function playTrackAtIndex(index, shouldBroadcast = true) {
         if (index < 0 || index >= playlist.length) return;
+
+        // Immediately pause and stop any existing audio to eliminate cross-track overlap
+        if (audioElement) {
+          audioElement.pause();
+        }
+        if (remoteAudioElement) {
+          remoteAudioElement.pause();
+          try { remoteAudioElement.srcObject = null; } catch(e) {}
+        }
+
         currentTrackIndex = index;
         const track = playlist[index];
         loadTrackIntoPlayer(track, true);
@@ -4114,8 +4154,14 @@
         } else {
           let nextIdx = currentTrackIndex + 1;
           if (nextIdx >= playlist.length) {
-            if (loopMode === 'all') nextIdx = 0;
-            else return;
+            if (loopMode === 'all') {
+              nextIdx = 0;
+            } else {
+              audioElement.pause();
+              if (remoteAudioElement) remoteAudioElement.pause();
+              setPlayingState(false);
+              return;
+            }
           }
           playTrackAtIndex(nextIdx);
         }
