@@ -1573,6 +1573,341 @@
         width: 90px;
       }
     }
+
+    /* ==========================================================================
+       PARTY FEATURES: REACTIONS, SOUNDBOARD, UPVOTING & KARAOKE LYRICS
+       ========================================================================== */
+    
+    /* Floating Reaction Dock */
+    .reaction-dock {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(18, 22, 38, 0.88);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(99, 102, 241, 0.25);
+      z-index: 95;
+      transition: var(--transition-smooth);
+    }
+    .reaction-dock:hover {
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(99, 102, 241, 0.4);
+    }
+    .reaction-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-full);
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .reaction-btn:hover {
+      transform: scale(1.35) translateY(-3px);
+    }
+    .reaction-btn:active {
+      transform: scale(0.9);
+    }
+    .btn-soundboard-trigger {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-left: 4px;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+      transition: var(--transition-smooth);
+    }
+    .btn-soundboard-trigger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.55);
+    }
+
+    /* Floating Reaction Particles */
+    #reaction-particles-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 1000;
+      overflow: hidden;
+    }
+    .floating-reaction-particle {
+      position: absolute;
+      bottom: 20px;
+      font-size: 2.2rem;
+      user-select: none;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+      animation: floatParticleUp 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      will-change: transform, opacity;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .reaction-sender-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(18, 22, 38, 0.85);
+      color: #f8fafc;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--border-glow);
+      margin-top: 2px;
+      white-space: nowrap;
+    }
+    @keyframes floatParticleUp {
+      0% {
+        transform: translateY(0) scale(0.4) rotate(0deg);
+        opacity: 0;
+      }
+      15% {
+        transform: translateY(-40px) scale(1.2) rotate(var(--rot-mid, -5deg));
+        opacity: 1;
+      }
+      75% {
+        opacity: 0.95;
+      }
+      100% {
+        transform: translateY(-550px) translateX(var(--drift-x, 20px)) scale(0.9) rotate(var(--rot-end, 15deg));
+        opacity: 0;
+      }
+    }
+
+    /* DJ Soundboard Modal */
+    .soundboard-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .soundboard-pad {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 22px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      user-select: none;
+    }
+    .soundboard-pad:hover {
+      background: rgba(99, 102, 241, 0.14);
+      border-color: var(--accent-primary);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
+    }
+    .soundboard-pad:active, .soundboard-pad.pad-pressed {
+      transform: scale(0.94);
+      background: var(--accent-gradient);
+      box-shadow: 0 0 28px rgba(99, 102, 241, 0.6);
+    }
+    .soundboard-pad-icon {
+      font-size: 2.2rem;
+    }
+    .soundboard-pad-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .soundboard-pad-desc {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* Track Voting & Auto-DJ Banner */
+    .autodj-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.16) 0%, rgba(236, 72, 153, 0.12) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: var(--radius-md);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #e0e7ff;
+      margin-bottom: 12px;
+    }
+    .btn-vote-track {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      border-radius: var(--radius-full);
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      transition: var(--transition-smooth);
+    }
+    .btn-vote-track:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .btn-vote-track.voted {
+      background: var(--accent-gradient);
+      border-color: transparent;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    }
+    .vote-count {
+      min-width: 10px;
+      text-align: center;
+    }
+
+    /* Synchronized Karaoke Lyrics Stage */
+    .lyrics-card {
+      display: none;
+      flex-direction: column;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      height: 480px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+    .stage-section.lyrics-active .visualizer-wrapper {
+      display: none !important;
+    }
+    .stage-section.lyrics-active .lyrics-card {
+      display: flex !important;
+    }
+    .lyrics-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 16px;
+    }
+    .lyrics-title-wrap h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .lyrics-title-wrap p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .lyrics-scroll-container {
+      flex: 1;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 30px 10px 100px 10px;
+      text-align: center;
+      mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    }
+    .lyric-line {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.38);
+      cursor: pointer;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .lyric-line:hover {
+      color: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .lyric-line.active-karaoke-line {
+      font-size: 1.45rem;
+      font-weight: 800;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      transform: scale(1.08);
+      text-shadow: 0 0 30px rgba(99, 102, 241, 0.6);
+      filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.5));
+    }
+    .lyrics-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+      gap: 12px;
+      font-size: 0.9rem;
+    }
+    .btn-paste-lrc {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-glass);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+    .btn-paste-lrc:hover {
+      background: var(--accent-gradient);
+      border-color: transparent;
+    }
+
+    /* Mobile view for lyrics */
+    @media (max-width: 900px) {
+      .reaction-dock {
+        bottom: 78px;
+        right: 14px;
+        padding: 5px 10px;
+        gap: 3px;
+      }
+      .reaction-btn {
+        font-size: 1.15rem;
+      }
+      body[data-mobile-view="lyrics"] .stage-section {
+        display: flex !important;
+      }
+      body[data-mobile-view="lyrics"] .visualizer-wrapper,
+      body[data-mobile-view="lyrics"] .dsp-panel,
+      body[data-mobile-view="lyrics"] .playlist-sidebar {
+        display: none !important;
+      }
+      body[data-mobile-view="lyrics"] .lyrics-card {
+        display: flex !important;
+        height: 380px;
+      }
+    }
+
   </style>
 </head>
 <body data-theme="neon" data-mobile-view="player">
@@ -1640,6 +1975,10 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       <span>Playlist</span>
       <span class="tab-badge" id="mobile-track-badge">0</span>
+    </button>
+    <button class="mobile-tab-btn" data-view="lyrics">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      <span>Lyrics</span>
     </button>
   </nav>
 
@@ -1810,6 +2149,10 @@
     <!-- RIGHT: PLAYLIST & LOCAL DATABASE SIDEBAR -->
     <aside class="glass-panel playlist-sidebar">
       <div class="playlist-header">
+        <div class="autodj-banner">
+          <span style="font-size: 1rem;">🏆</span>
+          <span><b>Auto-DJ Mode Active:</b> Most-upvoted song plays next!</span>
+        </div>
         <div class="playlist-title-row">
           <h2>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
@@ -2348,6 +2691,11 @@
       let currentRoomCode = '';
       let clockOffset = 0;
       const incomingFileTransfers = new Map();
+      const roomSongVotes = new Map(); // trackId -> voteCount
+      const myVotedTrackIds = new Set(); // trackIds voted by this user
+      let currentTrackLyrics = []; // [{ time: seconds, text: string }]
+      let activeLyricIndex = -1;
+      const lyricsCache = new Map(); // trackId -> lrcText
       function arrayBufferToBase64(buffer) {
         let binary = '';
         const bytes = new Uint8Array(buffer);
@@ -2470,6 +2818,14 @@
       function setupHostConnection(conn) {
         conn.on('open', () => {
           activeConnections.set(conn.peer, conn);
+
+          // Send current song votes table to new peer
+          if (roomSongVotes.size > 0) {
+            sendSyncPacketTo(conn, {
+              type: 'VOTES_SYNC',
+              votes: Object.fromEntries(roomSongVotes)
+            });
+          }
           updateConnectedPeersList();
           showToast(`Device joined room: ${conn.peer.substring(0, 8)}`, 'info');
 
@@ -2612,7 +2968,7 @@
 
         // On host: relay incoming guest packets to all other peers in the room
         if (isHost && sourceConn) {
-          const relayTypes = ['ROOM_ADD_TRACK', 'PLAYLIST_SNAPSHOT', 'REQUEST_PLAY_TRACK', 'FILE_START', 'FILE_CHUNK', 'FILE_COMPLETE', 'PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE'];
+          const relayTypes = ['ROOM_ADD_TRACK', 'PLAYLIST_SNAPSHOT', 'REQUEST_PLAY_TRACK', 'FILE_START', 'FILE_CHUNK', 'FILE_COMPLETE', 'PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE', 'ROOM_REACTION', 'ROOM_SOUND_EFFECT', 'TRACK_VOTE', 'VOTES_SYNC'];
           if (relayTypes.includes(data.type)) {
             activeConnections.forEach(conn => {
               if (conn.open && conn.peer !== sourceConn.peer) {
@@ -2623,6 +2979,30 @@
         }
 
         switch (data.type) {
+          case 'ROOM_REACTION':
+            spawnReactionParticle(data.emoji, data.senderNick);
+            break;
+
+          case 'ROOM_SOUND_EFFECT':
+            playDJSound(data.sound);
+            showToast(`🎛️ ${data.senderNick || 'Peer'} played DJ ${data.sound.toUpperCase()}!`, 'info');
+            break;
+
+          case 'TRACK_VOTE':
+            if (data.trackId) {
+              const currentV = (roomSongVotes.get(data.trackId) || 0) + (data.voteDelta || 1);
+              roomSongVotes.set(data.trackId, Math.max(0, currentV));
+              renderPlaylistUI();
+            }
+            break;
+
+          case 'VOTES_SYNC':
+            if (data.votes && typeof data.votes === 'object') {
+              Object.entries(data.votes).forEach(([k, v]) => roomSongVotes.set(k, v));
+              renderPlaylistUI();
+            }
+            break;
+
           case 'ROOM_ADD_TRACK':
             if (data.trackMeta) {
               const exists = playlist.some(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
@@ -2848,6 +3228,287 @@
           }
         }
       }
+
+      /* ------------------------------------------------------------------------
+       * 5B. PARTY FEATURES: SOUNDBOARD, EMOJI REACTIONS & SYNCHRONIZED LYRICS
+       * ------------------------------------------------------------------------ */
+
+      // 1. DJ Soundboard Web Audio Synthesizer
+      function playDJSound(soundType) {
+        initAudioContext();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+        const now = audioCtx.currentTime;
+        const masterFx = audioCtx.createGain();
+        masterFx.gain.value = 0.75;
+        masterFx.connect(audioCtx.destination);
+        if (streamDestNode) masterFx.connect(streamDestNode);
+
+        if (soundType === 'airhorn') {
+          // Classic 3-burst reggae/dancehall DJ airhorn
+          const freqs = [466.16, 698.46, 932.33]; // Bb chord
+          const bursts = [
+            { start: 0, dur: 0.12 },
+            { start: 0.16, dur: 0.12 },
+            { start: 0.32, dur: 0.65 }
+          ];
+
+          bursts.forEach(b => {
+            freqs.forEach(f => {
+              const osc = audioCtx.createOscillator();
+              const g = audioCtx.createGain();
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(f, now + b.start);
+              if (b.dur > 0.5) {
+                osc.frequency.exponentialRampToValueAtTime(f * 0.88, now + b.start + b.dur);
+              }
+              g.gain.setValueAtTime(0.001, now + b.start);
+              g.gain.linearRampToValueAtTime(0.18, now + b.start + 0.02);
+              g.gain.setValueAtTime(0.18, now + b.start + b.dur - 0.03);
+              g.gain.linearRampToValueAtTime(0.001, now + b.start + b.dur);
+
+              osc.connect(g);
+              g.connect(masterFx);
+              osc.start(now + b.start);
+              osc.stop(now + b.start + b.dur + 0.05);
+            });
+          });
+        } else if (soundType === 'bassdrop') {
+          // Subwoofer 808 frequency drop sweep 160Hz -> 35Hz
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(32, now + 1.1);
+
+          g.gain.setValueAtTime(0.85, now);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+
+          osc.connect(g);
+          g.connect(masterFx);
+          osc.start(now);
+          osc.stop(now + 1.3);
+        } else if (soundType === 'scratch') {
+          // Filtered vinyl scratch
+          const bufferSize = Math.floor(audioCtx.sampleRate * 0.35);
+          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+          const noise = audioCtx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = audioCtx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.Q.value = 6;
+          filter.frequency.setValueAtTime(800, now);
+          filter.frequency.linearRampToValueAtTime(3200, now + 0.12);
+          filter.frequency.linearRampToValueAtTime(450, now + 0.32);
+
+          const g = audioCtx.createGain();
+          g.gain.setValueAtTime(0.6, now);
+          g.gain.exponentialRampToValueAtTime(0.01, now + 0.34);
+
+          noise.connect(filter);
+          filter.connect(g);
+          g.connect(masterFx);
+          noise.start(now);
+          noise.stop(now + 0.35);
+        } else if (soundType === 'cheer') {
+          // Crowd cheer / applause simulation
+          const bufferSize = Math.floor(audioCtx.sampleRate * 1.5);
+          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.sin(i / 150);
+
+          const noise = audioCtx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = audioCtx.createBiquadFilter();
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(1400, now);
+          filter.Q.value = 3;
+
+          const g = audioCtx.createGain();
+          g.gain.setValueAtTime(0.01, now);
+          g.gain.linearRampToValueAtTime(0.5, now + 0.3);
+          g.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+          noise.connect(filter);
+          filter.connect(g);
+          g.connect(masterFx);
+          noise.start(now);
+          noise.stop(now + 1.55);
+        }
+      }
+
+      // 2. Floating Emoji Reactions Particle System
+      function spawnReactionParticle(emoji, senderNick = '') {
+        const container = document.getElementById('reaction-particles-container');
+        if (!container) return;
+
+        const count = 4 + Math.floor(Math.random() * 3);
+        const originX = window.innerWidth - 160 + (Math.random() * 80 - 40);
+
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => {
+            const particle = document.createElement('div');
+            particle.className = 'floating-reaction-particle';
+            particle.textContent = emoji;
+
+            const startX = Math.max(20, Math.min(window.innerWidth - 60, originX + (Math.random() * 120 - 60)));
+            const driftX = (Math.random() * 120 - 60) + 'px';
+            const rotMid = (Math.random() * 30 - 15) + 'deg';
+            const rotEnd = (Math.random() * 60 - 30) + 'deg';
+
+            particle.style.left = startX + 'px';
+            particle.style.setProperty('--drift-x', driftX);
+            particle.style.setProperty('--rot-mid', rotMid);
+            particle.style.setProperty('--rot-end', rotEnd);
+
+            if (i === 0 && senderNick) {
+              const pill = document.createElement('span');
+              pill.className = 'reaction-sender-pill';
+              pill.textContent = senderNick;
+              particle.appendChild(pill);
+            }
+
+            container.appendChild(particle);
+            particle.addEventListener('animationend', () => particle.remove());
+          }, i * 90);
+        }
+      }
+
+      // 3. LRC Parser & Karaoke Engine
+      function parseLRC(lrcText) {
+        if (!lrcText) return [];
+        const lines = lrcText.split(/\r?\n/);
+        const result = [];
+        const timeRegex = /\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/g;
+
+        for (const line of lines) {
+          let match;
+          const timestamps = [];
+          timeRegex.lastIndex = 0;
+          while ((match = timeRegex.exec(line)) !== null) {
+            const min = parseInt(match[1], 10);
+            const sec = parseInt(match[2], 10);
+            const ms = match[3] ? (match[3].length === 2 ? parseInt(match[3], 10) * 10 : parseInt(match[3], 10)) : 0;
+            timestamps.push(min * 60 + sec + ms / 1000);
+          }
+          const text = line.replace(timeRegex, '').trim();
+          if (text) {
+            for (const t of timestamps) {
+              result.push({ time: t, text: text });
+            }
+          }
+        }
+        result.sort((a, b) => a.time - b.time);
+        return result;
+      }
+
+      const defaultDemoLRC = [
+        '[00:00.00] SyncTune — Pure Hi-Fi Audio',
+        '[00:03.50] Multi-Device Synchronized Music Experience',
+        '[00:07.80] Low-latency WebRTC acoustic stream',
+        '[00:12.40] 3-Band DSP Equalizer vibrating through your room',
+        '[00:17.20] Real-time dynamic spectrum visualizer dancing at 60fps',
+        '[00:22.50] Collaborative party queue & crowd upvoting',
+        '[00:27.00] Feel the rhythm connected across every screen',
+        '[00:32.00] SyncTune — Sound Without Boundaries'
+      ].join('\n');
+
+      function loadLyricsForCurrentTrack() {
+        const titleEl = document.getElementById('lyrics-song-title');
+        const artistEl = document.getElementById('lyrics-song-artist');
+        const container = document.getElementById('lyrics-lines-container');
+
+        const track = (currentTrackIndex >= 0 && playlist[currentTrackIndex])
+          ? playlist[currentTrackIndex]
+          : demoTrackMetadata;
+
+        if (titleEl) titleEl.textContent = track.title || 'Unknown Title';
+        if (artistEl) artistEl.textContent = track.artist || 'Unknown Artist';
+
+        let lrcText = lyricsCache.get(track.id) || (track.isDemo ? defaultDemoLRC : '');
+
+        if (!lrcText && track.lyrics) {
+          lrcText = track.lyrics;
+        }
+
+        currentTrackLyrics = parseLRC(lrcText);
+        activeLyricIndex = -1;
+
+        if (currentTrackLyrics.length === 0) {
+          container.innerHTML = `
+            <div class="lyrics-empty-state">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              <span>No synchronized lyrics found for this track.</span>
+              <button class="btn-paste-lrc" id="btn-empty-add-lrc">+ Add / Paste .LRC Lines</button>
+            </div>
+          `;
+          const emptyBtn = document.getElementById('btn-empty-add-lrc');
+          if (emptyBtn) emptyBtn.addEventListener('click', openLyricsModal);
+          return;
+        }
+
+        let html = '';
+        currentTrackLyrics.forEach((line, idx) => {
+          html += `<div class="lyric-line" data-lrc-idx="${idx}" data-time="${line.time}">${escapeHtml(line.text)}</div>`;
+        });
+        container.innerHTML = html;
+
+        container.querySelectorAll('.lyric-line').forEach(el => {
+          el.addEventListener('click', () => {
+            const time = parseFloat(el.getAttribute('data-time'));
+            if (!isNaN(time)) {
+              audioElement.currentTime = time;
+              updateTimelineUI();
+              broadcastSyncPacket({
+                type: 'SEEK',
+                currentTime: time,
+                trackMeta: getCurrentTrackPayload()
+              });
+            }
+          });
+        });
+      }
+
+      function updateKaraokeHighlight(currentTime) {
+        if (!currentTrackLyrics || currentTrackLyrics.length === 0) return;
+
+        let activeIdx = -1;
+        for (let i = 0; i < currentTrackLyrics.length; i++) {
+          if (currentTime >= currentTrackLyrics[i].time) {
+            activeIdx = i;
+          } else {
+            break;
+          }
+        }
+
+        if (activeIdx !== activeLyricIndex) {
+          activeLyricIndex = activeIdx;
+          const container = document.getElementById('lyrics-lines-container');
+          if (!container) return;
+
+          container.querySelectorAll('.lyric-line').forEach((el, idx) => {
+            if (idx === activeIdx) {
+              el.classList.add('active-karaoke-line');
+              const offsetTop = el.offsetTop - container.offsetTop - (container.clientHeight / 2) + (el.clientHeight / 2);
+              container.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+            } else {
+              el.classList.remove('active-karaoke-line');
+            }
+          });
+        }
+      }
+
+      function openLyricsModal() {
+        const modal = document.getElementById('lyrics-modal');
+        const textarea = document.getElementById('lrc-textarea');
+        const track = (currentTrackIndex >= 0 && playlist[currentTrackIndex]) ? playlist[currentTrackIndex] : demoTrackMetadata;
+        textarea.value = lyricsCache.get(track.id) || (track.isDemo ? defaultDemoLRC : '');
+        modal.classList.add('open');
+      }
+
 
       /* ------------------------------------------------------------------------
        * 6. METADATA & ALBUM ART EXTRACTION (jsmediatags + fallbacks)
@@ -3126,6 +3787,7 @@
 
         // Update UI
         applyRemoteTrackMetadata(track);
+        loadLyricsForCurrentTrack();
 
         if (autoPlay) {
           if (audioSrc) {
@@ -3448,6 +4110,10 @@
                 </div>
               </div>
               <div class="track-trailing">
+                <button class="btn-vote-track ${myVotedTrackIds.has(track.id) ? 'voted' : ''}" data-vote-idx="${idx}" title="Vote for this song to play next">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 4 4 20 20 20"/></svg>
+                  <span class="vote-count">${(roomSongVotes.get(track.id) || 0) > 0 ? roomSongVotes.get(track.id) : ''}</span>
+                </button>
                 ${isActive && isPlaying ? `
                   <div class="mini-equalizer">
                     <span class="mini-bar"></span>
@@ -3470,6 +4136,40 @@
             if (e.target.closest('.btn-delete-track')) return;
             const idx = parseInt(el.getAttribute('data-index'), 10);
             playTrackAtIndex(idx);
+          });
+        });
+
+        container.querySelectorAll('.btn-vote-track').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(btn.getAttribute('data-vote-idx'), 10);
+            const track = playlist[idx];
+            if (!track) return;
+
+            const isVoted = myVotedTrackIds.has(track.id);
+            const delta = isVoted ? -1 : 1;
+            if (isVoted) {
+              myVotedTrackIds.delete(track.id);
+            } else {
+              myVotedTrackIds.add(track.id);
+            }
+
+            const newTotal = Math.max(0, (roomSongVotes.get(track.id) || 0) + delta);
+            if (newTotal === 0) roomSongVotes.delete(track.id);
+            else roomSongVotes.set(track.id, newTotal);
+
+            renderPlaylistUI();
+
+            broadcastSyncPacket({
+              type: 'TRACK_VOTE',
+              trackId: track.id,
+              voteDelta: delta
+            });
+
+            if (!isVoted) {
+              showToast(`Upvoted "${track.title}" (+1 vote)!`, 'info');
+              spawnReactionParticle('🔥', 'You');
+            }
           });
         });
 
@@ -3512,6 +4212,7 @@
       }
 
       function updateTimelineUI() {
+        updateKaraokeHighlight(audioElement.currentTime);
         const cur = audioElement.currentTime || 0;
         const dur = audioElement.duration || 0;
         const pct = dur > 0 ? (cur / dur) * 100 : 0;
@@ -3918,5 +4619,83 @@
 
     })();
   </script>
+
+  <!-- Floating Reaction Dock -->
+  <div class="reaction-dock" id="reaction-dock">
+    <button class="reaction-btn" data-emoji="🔥" title="Hype Fire">🔥</button>
+    <button class="reaction-btn" data-emoji="❤️" title="Love It">❤️</button>
+    <button class="reaction-btn" data-emoji="🎉" title="Party">🎉</button>
+    <button class="reaction-btn" data-emoji="⚡" title="Electric Energy">⚡</button>
+    <button class="reaction-btn" data-emoji="🎵" title="Music Vibe">🎵</button>
+    <button class="reaction-btn" data-emoji="👏" title="Applause">👏</button>
+    <button class="btn-soundboard-trigger" id="btn-soundboard-trigger" title="DJ Soundboard FX">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <span>DJ FX</span>
+    </button>
+  </div>
+
+  <!-- Particles Overlay -->
+  <div id="reaction-particles-container"></div>
+
+  <!-- DJ Soundboard Modal -->
+  <div class="modal-backdrop" id="soundboard-modal">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <span>🎛️</span>
+          <span>Room DJ Soundboard</span>
+        </h3>
+        <button class="btn-action btn-icon-only" id="btn-close-soundboard">✕</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
+        Tap any pad to blast sound effects across all connected devices in sync!
+      </p>
+
+      <div class="soundboard-grid">
+        <div class="soundboard-pad" data-sound="airhorn">
+          <span class="soundboard-pad-icon">📯</span>
+          <span class="soundboard-pad-title">Airhorn</span>
+          <span class="soundboard-pad-desc">Classic 3-burst ragga horn</span>
+        </div>
+        <div class="soundboard-pad" data-sound="scratch">
+          <span class="soundboard-pad-icon">🎧</span>
+          <span class="soundboard-pad-title">Vinyl Scratch</span>
+          <span class="soundboard-pad-desc">Rewind record drop</span>
+        </div>
+        <div class="soundboard-pad" data-sound="bassdrop">
+          <span class="soundboard-pad-icon">💥</span>
+          <span class="soundboard-pad-title">808 Bass Drop</span>
+          <span class="soundboard-pad-desc">Subwoofer rumble sweep</span>
+        </div>
+        <div class="soundboard-pad" data-sound="cheer">
+          <span class="soundboard-pad-icon">👏</span>
+          <span class="soundboard-pad-title">Crowd Cheer</span>
+          <span class="soundboard-pad-desc">Applause & hype burst</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Lyrics / LRC Input Modal -->
+  <div class="modal-backdrop" id="lyrics-modal">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <span>🎤</span>
+          <span>Custom .LRC Lyrics</span>
+        </h3>
+        <button class="btn-action btn-icon-only" id="btn-close-lyrics-modal">✕</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin: 8px 0 12px 0;">
+        Paste timestamped .LRC lines (e.g. <code>[00:12.50] Lyric line</code>) for the current song.
+      </p>
+      <textarea id="lrc-textarea" style="width: 100%; height: 180px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-main); font-family: monospace; font-size: 0.8rem; padding: 12px; resize: vertical;" placeholder="[00:00.00] Song intro&#10;[00:04.50] First lyric line&#10;[00:09.20] Chorus drops here..."></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+        <button class="btn-secondary" id="btn-load-demo-lrc" style="padding: 8px 14px; border-radius: var(--radius-md);">Load Demo</button>
+        <button class="btn-primary" id="btn-save-lrc" style="padding: 8px 18px; border-radius: var(--radius-md);">Save & Sync</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
