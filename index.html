@@ -1089,6 +1089,30 @@
       gap: 6px;
     }
 
+    .track-badge-remote {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(6, 182, 212, 0.18);
+      color: var(--accent-secondary);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      margin-left: 6px;
+      display: inline-block;
+    }
+    
+    .track-badge-synced {
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      background: rgba(16, 185, 129, 0.18);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      margin-left: 6px;
+      display: inline-block;
+    }
+    
     .track-ext-pill {
       font-size: 0.65rem;
       padding: 1px 5px;
@@ -2323,6 +2347,27 @@
       let hostConnection = null;
       let currentRoomCode = '';
       let clockOffset = 0;
+      const incomingFileTransfers = new Map();
+      function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      }
+
+      function base64ToArrayBuffer(base64) {
+        const binary_string = atob(base64);
+        const len = binary_string.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+ // transferId -> { chunks, totalChunks, meta, fileName, fileType }
 
       function generateRoomCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2367,16 +2412,15 @@
             setupHostConnection(conn);
           });
 
-          // Guests receiving Live Audio Stream from Host
+          // Audio Stream handler (Host & Guest bidirectional relay)
           peer.on('call', (call) => {
-            call.answer(); // Answer without sending local stream
+            call.answer(); // Answer incoming audio stream
             call.on('stream', (remoteStream) => {
               initAudioContext();
               if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
               }
 
-              // Pipe stream into Web Audio DSP Graph so guest visualizer dances and EQ works!
               try {
                 if (remoteSourceNode) {
                   try { remoteSourceNode.disconnect(); } catch(e) {}
@@ -2384,7 +2428,6 @@
                 remoteSourceNode = audioCtx.createMediaStreamSource(remoteStream);
                 remoteSourceNode.connect(bassFilterNode);
 
-                // Muted sink element required for WebRTC audio playback in Chrome/Safari
                 const sinkAudio = new Audio();
                 sinkAudio.srcObject = remoteStream;
                 sinkAudio.muted = true;
@@ -2395,8 +2438,17 @@
                 audioElement.play().catch(err => console.log('Autoplay policy:', err));
               }
 
-              showToast('Receiving Live Host Audio & Visualizer!', 'success');
-              updateSyncBadge('guest', 'Live Audio Stream Active');
+              // If Host receives audio stream from a Guest, relay to all other guests!
+              if (isHost && activeConnections.size > 1) {
+                activeConnections.forEach((conn) => {
+                  if (conn.peer !== call.peer) {
+                    peer.call(conn.peer, remoteStream);
+                  }
+                });
+              }
+
+              showToast(isHost ? 'Relaying outsider audio to room!' : 'Receiving live synced audio & visualizer!', 'success');
+              updateSyncBadge(isHost ? 'host' : 'guest', 'Live Audio Active');
               setPlayingState(true);
             });
           });
@@ -2430,6 +2482,24 @@
             hostTimestamp: performance.now(),
             trackMeta: getCurrentTrackPayload()
           });
+
+          // Send full playlist snapshot so guest immediately sees all songs
+          if (playlist.length > 0) {
+            sendSyncPacketTo(conn, {
+              type: 'PLAYLIST_SNAPSHOT',
+              playlist: playlist.map(t => ({
+                id: t.id,
+                title: t.title,
+                artist: t.artist,
+                album: t.album,
+                ext: t.ext,
+                format: t.format,
+                duration: t.duration,
+                coverUrl: t.coverUrl,
+                isRemote: true
+              }))
+            });
+          }
 
           // Broadcast host audio stream to new peer
           if (streamDestNode && streamDestNode.stream) {
@@ -2470,6 +2540,25 @@
             document.getElementById('room-modal').classList.remove('open');
 
             conn.send({ type: 'PING', clientTime: performance.now() });
+
+            // Share guest's existing tracks with host so host and room know about them
+            if (playlist.length > 0) {
+              sendSyncPacketTo(conn, {
+                type: 'PLAYLIST_SNAPSHOT',
+                playlist: playlist.map(t => ({
+                  id: t.id,
+                  title: t.title,
+                  artist: t.artist,
+                  album: t.album,
+                  ext: t.ext,
+                  format: t.format,
+                  duration: t.duration,
+                  coverUrl: t.coverUrl,
+                  isRemote: true,
+                  originPeerId: myPeerId
+                }))
+              });
+            }
           });
 
           conn.on('data', (data) => {
@@ -2531,7 +2620,128 @@
           applyRemoteTrackMetadata(data.trackMeta);
         }
 
+        // On host: relay incoming guest packets to all other peers in the room
+        if (isHost && sourceConn) {
+          const relayTypes = ['ROOM_ADD_TRACK', 'PLAYLIST_SNAPSHOT', 'REQUEST_PLAY_TRACK', 'FILE_START', 'FILE_CHUNK', 'FILE_COMPLETE', 'PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE'];
+          if (relayTypes.includes(data.type)) {
+            activeConnections.forEach(conn => {
+              if (conn.open && conn.peer !== sourceConn.peer) {
+                conn.send(data);
+              }
+            });
+          }
+        }
+
         switch (data.type) {
+          case 'ROOM_ADD_TRACK':
+            if (data.trackMeta) {
+              const exists = playlist.some(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+              if (!exists) {
+                playlist.push({
+                  id: data.trackMeta.id,
+                  title: data.trackMeta.title,
+                  artist: data.trackMeta.artist,
+                  album: data.trackMeta.album,
+                  ext: data.trackMeta.ext,
+                  format: data.trackMeta.format,
+                  duration: data.trackMeta.duration,
+                  coverUrl: data.trackMeta.coverUrl,
+                  isRemote: true,
+                  originPeerId: data.originPeerId
+                });
+                renderPlaylistUI();
+                updateStorageStatus();
+                showToast(`🎵 Outsider song added: "${data.trackMeta.title}"`, 'info');
+              }
+            }
+            break;
+
+          case 'PLAYLIST_SNAPSHOT':
+            if (Array.isArray(data.playlist)) {
+              let addedCount = 0;
+              data.playlist.forEach(remoteTrack => {
+                const exists = playlist.some(t => t.id === remoteTrack.id || (t.title === remoteTrack.title && t.artist === remoteTrack.artist));
+                if (!exists) {
+                  playlist.push(remoteTrack);
+                  addedCount++;
+                }
+              });
+              if (addedCount > 0) {
+                renderPlaylistUI();
+                updateStorageStatus();
+                showToast(`Synced ${addedCount} room track(s)!`, 'info');
+              }
+            }
+            break;
+
+          case 'REQUEST_PLAY_TRACK':
+            const localMatch = playlist.find(t => t.id === data.trackId && t.fileBlob);
+            if (localMatch) {
+              const idx = playlist.indexOf(localMatch);
+              playTrackAtIndex(idx, true);
+              showToast(`Streaming "${localMatch.title}" to room...`, 'info');
+            }
+            break;
+
+          case 'FILE_START':
+            incomingFileTransfers.set(data.transferId, {
+              chunks: new Array(data.totalChunks),
+              receivedCount: 0,
+              totalChunks: data.totalChunks,
+              fileName: data.fileName,
+              fileType: data.fileType,
+              trackMeta: data.trackMeta
+            });
+            break;
+
+          case 'FILE_CHUNK':
+            const job = incomingFileTransfers.get(data.transferId);
+            if (job) {
+              const arrayBuf = base64ToArrayBuffer(data.chunkData || data.chunk);
+              job.chunks[data.chunkIndex] = arrayBuf;
+              job.receivedCount++;
+            }
+            break;
+
+          case 'FILE_COMPLETE':
+            const completed = incomingFileTransfers.get(data.transferId);
+            if (completed && completed.trackMeta) {
+              try {
+                const blob = new Blob(completed.chunks, { type: completed.fileType || 'audio/mpeg' });
+                const syncedTrack = {
+                  id: completed.trackMeta.id || ('track_' + Date.now()),
+                  name: completed.fileName,
+                  size: blob.size,
+                  title: completed.trackMeta.title,
+                  artist: completed.trackMeta.artist,
+                  album: completed.trackMeta.album,
+                  ext: completed.trackMeta.ext,
+                  format: completed.trackMeta.format,
+                  coverUrl: completed.trackMeta.coverUrl,
+                  fileBlob: blob,
+                  duration: completed.trackMeta.duration || 0,
+                  isSynced: true
+                };
+
+                dbSaveTrack(syncedTrack);
+
+                const targetIdx = playlist.findIndex(t => t.id === syncedTrack.id || (t.title === syncedTrack.title && t.artist === syncedTrack.artist));
+                if (targetIdx !== -1) {
+                  playlist[targetIdx].fileBlob = blob;
+                  playlist[targetIdx].isSynced = true;
+                } else {
+                  playlist.push(syncedTrack);
+                }
+                renderPlaylistUI();
+                updateStorageStatus();
+                showToast(`✓ Received & saved audio file: "${syncedTrack.title}"`, 'success');
+              } catch(e) {
+                console.warn('File reconstruct error:', e);
+              }
+              incomingFileTransfers.delete(data.transferId);
+            }
+            break;
+
           case 'PLAY':
             applySyncPlay(data.currentTime, data.timestamp);
             break;
@@ -2698,6 +2908,73 @@
       /* ------------------------------------------------------------------------
        * 7. PLAYLIST & FOLDER HANDLING (FILES & DIRECTORY TRAVERSAL)
        * ------------------------------------------------------------------------ */
+      
+      // P2P WebRTC background audio file chunk transfer to room
+      function shareAudioFileWithRoom(track) {
+        if (!track || !track.fileBlob) return;
+        const file = track.fileBlob;
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+          const arrayBuffer = e.target.result;
+          const chunkSize = 32768; // 32KB safe WebRTC chunk size
+          const totalChunks = Math.ceil(arrayBuffer.byteLength / chunkSize);
+          const transferId = 'xfer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+          // 1. Notify start of file transfer
+          broadcastSyncPacket({
+            type: 'FILE_START',
+            transferId: transferId,
+            totalChunks: totalChunks,
+            fileSize: arrayBuffer.byteLength,
+            fileName: track.name || (track.title + '.' + (track.ext || 'mp3').toLowerCase()),
+            fileType: file.type || 'audio/mpeg',
+            trackMeta: {
+              id: track.id,
+              title: track.title,
+              artist: track.artist,
+              album: track.album,
+              ext: track.ext,
+              format: track.format,
+              duration: track.duration,
+              coverUrl: track.coverUrl
+            }
+          });
+
+          // 2. Stream chunks sequentially
+          let chunkIdx = 0;
+          function sendChunksBatch() {
+            const batchSize = 4;
+            for (let i = 0; i < batchSize && chunkIdx < totalChunks; i++) {
+              const start = chunkIdx * chunkSize;
+              const end = Math.min(arrayBuffer.byteLength, start + chunkSize);
+              const slice = arrayBuffer.slice(start, end);
+              const b64Data = arrayBufferToBase64(slice);
+
+              broadcastSyncPacket({
+                type: 'FILE_CHUNK',
+                transferId: transferId,
+                chunkIndex: chunkIdx,
+                chunkData: b64Data
+              });
+              chunkIdx++;
+            }
+
+            if (chunkIdx < totalChunks) {
+              setTimeout(sendChunksBatch, 25);
+            } else {
+              broadcastSyncPacket({
+                type: 'FILE_COMPLETE',
+                transferId: transferId
+              });
+            }
+          }
+          sendChunksBatch();
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+
       async function handleFilesSelected(files) {
         if (!files || files.length === 0) return;
         initAudioContext();
@@ -2734,6 +3011,25 @@
 
           playlist.push(trackItem);
           addedCount++;
+
+          // Broadcast track metadata to all devices in room immediately!
+          broadcastSyncPacket({
+            type: 'ROOM_ADD_TRACK',
+            trackMeta: {
+              id: trackItem.id,
+              title: trackItem.title,
+              artist: trackItem.artist,
+              album: trackItem.album,
+              ext: trackItem.ext,
+              format: trackItem.format,
+              duration: trackItem.duration,
+              coverUrl: trackItem.coverUrl
+            },
+            originPeerId: myPeerId
+          });
+
+          // Background sync file chunks to all peers
+          shareAudioFileWithRoom(trackItem);
         }
 
         renderPlaylistUI();
@@ -2818,18 +3114,40 @@
         applyRemoteTrackMetadata(track);
 
         if (autoPlay) {
-          audioElement.play().then(() => {
-            setPlayingState(true);
-            broadcastSyncPacket({
-              type: 'PLAY',
-              trackIndex: currentTrackIndex,
-              currentTime: 0,
-              trackMeta: getCurrentTrackPayload()
+          if (audioSrc) {
+            audioElement.play().then(() => {
+              setPlayingState(true);
+
+              // If outsider guest plays local track, stream WebRTC audio to host
+              if (!isHost && hostConnection && streamDestNode && streamDestNode.stream) {
+                peer.call(hostConnection.peer, streamDestNode.stream);
+              } else if (isHost && activeConnections.size > 0 && streamDestNode && streamDestNode.stream) {
+                // If host plays, stream to all guests
+                activeConnections.forEach(conn => {
+                  if (conn.open) peer.call(conn.peer, streamDestNode.stream);
+                });
+              }
+
+              broadcastSyncPacket({
+                type: 'PLAY',
+                trackIndex: currentTrackIndex,
+                currentTime: 0,
+                trackMeta: getCurrentTrackPayload(),
+                broadcasterId: myPeerId
+              });
+            }).catch(e => {
+              console.log('Play prevented by autoplay policy:', e);
+              setPlayingState(false);
             });
-          }).catch(e => {
-            console.log('Play prevented by autoplay policy:', e);
-            setPlayingState(false);
-          });
+          } else {
+            // Remote track whose file hasn't arrived yet: request track owner to stream it
+            broadcastSyncPacket({
+              type: 'REQUEST_PLAY_TRACK',
+              trackId: track.id,
+              trackMeta: track
+            });
+            showToast(`Requesting room to stream "${track.title}"...`, 'info');
+          }
         }
       }
 
@@ -3112,6 +3430,7 @@
                 <div class="track-artist">
                   <span>${escapeHtml(track.artist)}</span>
                   <span class="track-ext-pill">${escapeHtml(track.ext || 'AUD')}</span>
+                  ${track.isRemote ? '<span class="track-badge-remote">☁ Room</span>' : (track.isSynced ? '<span class="track-badge-synced">✓ Synced</span>' : '')}
                 </div>
               </div>
               <div class="track-trailing">
