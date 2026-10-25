@@ -2802,7 +2802,7 @@
 
       function createSynthesizedDemoTrack() {
         const sampleRate = 44100;
-        const duration = 8;
+        const duration = 30;
         const numSamples = sampleRate * duration;
         const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, numSamples, sampleRate);
 
@@ -2942,13 +2942,16 @@
         }
         if (!track) return null;
         return {
+          id: track.id,
           title: track.title || 'Unknown Title',
           artist: track.artist || 'Unknown Artist',
           album: track.album || 'Hi-Fi Audio',
           ext: track.ext || 'AUD',
           format: track.format || `${track.ext || 'SYNC'} STREAM`,
           duration: track.duration || audioElement.duration || 0,
-          coverUrl: track.coverUrl
+          coverUrl: track.coverUrl,
+          url: track.url || null,
+          isCloud: !!track.isCloud
         };
       }
 
@@ -3716,9 +3719,29 @@
       function applySyncTrackChange(data) {
         if (data.trackMeta) {
           applyRemoteTrackMetadata(data.trackMeta);
-          const matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+          let matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+          if (matchIdx === -1 && data.trackMeta.url) {
+            // Cloud track not in guest playlist: add it dynamically
+            const cloudItem = {
+              id: data.trackMeta.id || ('cloud_' + Date.now()),
+              title: data.trackMeta.title,
+              artist: data.trackMeta.artist,
+              album: data.trackMeta.album,
+              duration: data.trackMeta.duration,
+              url: data.trackMeta.url,
+              coverUrl: data.trackMeta.coverUrl || generateCoverPlaceholder(data.trackMeta.title),
+              isCloud: true,
+              isSynced: true
+            };
+            playlist.unshift(cloudItem);
+            matchIdx = 0;
+          }
           currentTrackIndex = matchIdx;
           renderPlaylistUI();
+
+          if (matchIdx >= 0 && playlist[matchIdx] && playlist[matchIdx].url) {
+            loadTrackIntoPlayer(playlist[matchIdx], true);
+          }
         }
         setPlayingState(true);
       }
@@ -4361,6 +4384,8 @@
         let audioSrc = '';
         if (track.isDemo) {
           audioSrc = demoAudioBlobUrl || '';
+        } else if (track.url) {
+          audioSrc = track.url; // Supabase Cloud direct stream
         } else if (track.fileBlob) {
           audioSrc = URL.createObjectURL(track.fileBlob);
         }
@@ -4434,19 +4459,41 @@
           audioCtx.resume();
         }
 
-        if (currentTrackIndex === -1) {
-          if (playlist.length > 0) {
-            playTrackAtIndex(0);
-          } else {
-            loadTrackIntoPlayer(demoTrackMetadata, true);
-          }
-          return;
-        }
+        // Detect if audio is actively playing on either local element or remote WebRTC stream
+        const remoteIsPlaying = (remoteAudioElement && !remoteAudioElement.paused && remoteAudioElement.srcObject);
+        const localIsPlaying = (!audioElement.paused && audioElement.currentTime > 0);
+        const isCurrentlyPlaying = isPlaying || remoteIsPlaying || localIsPlaying;
 
-        if (audioElement.paused) {
+        if (isCurrentlyPlaying) {
+          // PAUSE ACTION
+          audioElement.pause();
+          if (remoteAudioElement && remoteAudioElement.srcObject) {
+            remoteAudioElement.pause();
+          }
+          setPlayingState(false);
+          broadcastSyncPacket({
+            type: 'PAUSE',
+            trackIndex: currentTrackIndex,
+            currentTime: audioElement.currentTime,
+            trackMeta: getCurrentTrackPayload()
+          });
+        } else {
+          // PLAY ACTION
+          if (currentTrackIndex === -1) {
+            if (playlist.length > 0) {
+              playTrackAtIndex(0);
+              return;
+            } else {
+              loadTrackIntoPlayer(demoTrackMetadata, false);
+            }
+          }
+
+          if (remoteAudioElement && remoteAudioElement.srcObject && !isHost) {
+            remoteAudioElement.play().catch(e => console.log('Remote play error:', e));
+          }
+
           audioElement.play().then(() => {
             setPlayingState(true);
-            // Seamless stream continuity
             if (isHost) {
               activeConnections.forEach(conn => {
                 if (conn.open) ensureAudioStreamToPeer(conn.peer);
@@ -4461,15 +4508,9 @@
               currentTime: audioElement.currentTime,
               trackMeta: getCurrentTrackPayload()
             });
-          }).catch(e => console.log('Autoplay prevented:', e));
-        } else {
-          audioElement.pause();
-          setPlayingState(false);
-          broadcastSyncPacket({
-            type: 'PAUSE',
-            trackIndex: currentTrackIndex,
-            currentTime: audioElement.currentTime,
-            trackMeta: getCurrentTrackPayload()
+          }).catch(e => {
+            console.log('Autoplay prevented:', e);
+            setPlayingState(false);
           });
         }
       }
@@ -4496,8 +4537,13 @@
       function playNextTrack() {
         if (playlist.length === 0) {
           if (demoAudioBlobUrl) {
-            audioElement.currentTime = 0;
-            audioElement.play().catch(e => console.log(e));
+            if (loopMode === 'one' || loopMode === 'all') {
+              audioElement.currentTime = 0;
+              audioElement.play().catch(e => console.log(e));
+            } else {
+              audioElement.pause();
+              setPlayingState(false);
+            }
           }
           return;
         }
