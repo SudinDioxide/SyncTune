@@ -1908,6 +1908,72 @@
       }
     }
 
+
+    /* Audio Unlock Overlay for Mobile Browsers */
+    .audio-unlock-overlay {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      cursor: pointer;
+      animation: slideDownFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .audio-unlock-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.96) 0%, rgba(236, 72, 153, 0.96) 100%);
+      color: #ffffff;
+      padding: 10px 20px;
+      border-radius: var(--radius-full);
+      box-shadow: 0 10px 32px rgba(99, 102, 241, 0.65), 0 0 24px rgba(236, 72, 153, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .audio-unlock-icon {
+      font-size: 1.4rem;
+      animation: pulseGlow 1.6s infinite ease-in-out;
+      line-height: 1;
+    }
+    .audio-unlock-text {
+      display: flex;
+      flex-direction: column;
+    }
+    .audio-unlock-text strong {
+      font-size: 0.86rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .audio-unlock-text span {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.85);
+    }
+    .btn-unlock-action {
+      background: #ffffff;
+      color: var(--accent-primary);
+      border: none;
+      font-weight: 800;
+      font-size: 0.76rem;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      transition: transform 0.15s ease;
+    }
+    .btn-unlock-action:hover {
+      transform: scale(1.05);
+    }
+    @keyframes slideDownFade {
+      from { transform: translate(-50%, -24px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6)); }
+      50% { transform: scale(1.18); filter: drop-shadow(0 0 12px rgba(255, 255, 255, 1)); }
+    }
+
   </style>
 </head>
 <body data-theme="neon" data-mobile-view="player">
@@ -2688,6 +2754,47 @@
       let isHost = false;
       let activeConnections = new Map();
       let hostConnection = null;
+      let remoteAudioElement = null;
+
+      function getOrCreateRemoteAudioElement() {
+        if (!remoteAudioElement) {
+          remoteAudioElement = document.getElementById('synctune-remote-stream-audio');
+          if (!remoteAudioElement) {
+            remoteAudioElement = document.createElement('audio');
+            remoteAudioElement.id = 'synctune-remote-stream-audio';
+            remoteAudioElement.autoplay = true;
+            remoteAudioElement.playsInline = true;
+            remoteAudioElement.muted = false;
+            remoteAudioElement.style.display = 'none';
+            document.body.appendChild(remoteAudioElement);
+          }
+        }
+        return remoteAudioElement;
+      }
+
+      function showAudioUnlockOverlay() {
+        const el = document.getElementById('audio-unlock-overlay');
+        if (el) el.style.display = 'block';
+      }
+
+      function hideAudioUnlockOverlay() {
+        const el = document.getElementById('audio-unlock-overlay');
+        if (el) el.style.display = 'none';
+      }
+
+      function unlockAllAudio() {
+        initAudioContext();
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        if (remoteAudioElement && remoteAudioElement.srcObject) {
+          remoteAudioElement.play().catch(() => {});
+        }
+        if (audioElement && audioElement.src) {
+          audioElement.play().catch(() => {});
+        }
+        hideAudioUnlockOverlay();
+      }
       let currentRoomCode = '';
       let clockOffset = 0;
       const incomingFileTransfers = new Map();
@@ -2769,24 +2876,36 @@
                 audioCtx.resume();
               }
 
+              // 1. Guaranteed unmuted audio playback on iOS, Android, and Desktop
+              const rAudio = getOrCreateRemoteAudioElement();
+              rAudio.srcObject = remoteStream;
+              rAudio.muted = false;
+              const savedVol = StoragePrefs.get('volume', 0.85);
+              rAudio.volume = parseFloat(document.getElementById('volume-range')?.value || savedVol);
+
+              const playPromise = rAudio.play();
+              if (playPromise) {
+                playPromise.then(() => {
+                  hideAudioUnlockOverlay();
+                }).catch(err => {
+                  console.log('Mobile autoplay policy waiting for user interaction:', err);
+                  showAudioUnlockOverlay();
+                });
+              }
+
+              // 2. Connect stream to Web Audio AnalyserNode for real-time spectrum visualizer
               try {
                 if (remoteSourceNode) {
                   try { remoteSourceNode.disconnect(); } catch(e) {}
                 }
                 remoteSourceNode = audioCtx.createMediaStreamSource(remoteStream);
-                remoteSourceNode.connect(bassFilterNode);
-
-                const sinkAudio = new Audio();
-                sinkAudio.srcObject = remoteStream;
-                sinkAudio.muted = true;
-                sinkAudio.play().catch(() => {});
+                // Connect exclusively to analyserNode (visualizer) to avoid double-echo
+                remoteSourceNode.connect(analyserNode);
               } catch(e) {
-                console.warn('createMediaStreamSource fallback:', e);
-                audioElement.srcObject = remoteStream;
-                audioElement.play().catch(err => console.log('Autoplay policy:', err));
+                console.warn('createMediaStreamSource visualizer tap fallback:', e);
               }
 
-              // If Host receives audio stream from a Guest, relay to all other guests!
+              // 3. If Host receives audio stream from a Guest, relay to all other guests!
               if (isHost && activeConnections.size > 1) {
                 activeConnections.forEach((conn) => {
                   if (conn.peer !== call.peer) {
@@ -2795,7 +2914,7 @@
                 });
               }
 
-              showToast(isHost ? 'Relaying outsider audio to room!' : 'Receiving live synced audio & visualizer!', 'success');
+              showToast(isHost ? 'Relaying outsider audio to room!' : 'Receiving synced live audio & visualizer!', 'success');
               updateSyncBadge(isHost ? 'host' : 'guest', 'Live Audio Active');
               setPlayingState(true);
             });
@@ -3119,18 +3238,11 @@
               currentTrackIndex = matchIdx;
               renderPlaylistUI();
             }
-            if (!remoteSourceNode && !hostConnection) {
-              applySyncPlay(data.currentTime, data.timestamp);
-            } else {
-              setPlayingState(true);
-            }
+            applySyncPlay(data.currentTime, data.timestamp);
             break;
+
           case 'PAUSE':
-            if (!remoteSourceNode && !hostConnection) {
-              applySyncPause(data.currentTime);
-            } else {
-              setPlayingState(false);
-            }
+            applySyncPause(data.currentTime);
             break;
           case 'SEEK':
             applySyncSeek(data.currentTime);
@@ -3168,24 +3280,48 @@
 
       function applySyncPlay(targetTime, hostTimestamp) {
         initAudioContext();
-        if (hostTimestamp) {
-          const elapsed = (performance.now() - hostTimestamp - clockOffset) / 1000;
-          const adjustedTime = Math.max(0, targetTime + Math.max(0, elapsed));
-          if (Math.abs(audioElement.currentTime - adjustedTime) > 0.08) {
-            audioElement.currentTime = adjustedTime;
-          }
-        } else {
-          audioElement.currentTime = targetTime;
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
         }
 
-        audioElement.play().then(() => {
-          setPlayingState(true);
-        }).catch(() => {
-          setPlayingState(true);
-        });
+        // If receiving WebRTC stream from host, play remote stream audio
+        const rAudio = getOrCreateRemoteAudioElement();
+        if (rAudio && rAudio.srcObject) {
+          rAudio.play().then(() => {
+            hideAudioUnlockOverlay();
+          }).catch(err => {
+            console.log('Remote audio waiting for interaction:', err);
+            showAudioUnlockOverlay();
+          });
+        }
+
+        // If local audio file is loaded, synchronize timestamp and play
+        if (audioElement && audioElement.src) {
+          if (hostTimestamp) {
+            const elapsed = (performance.now() - hostTimestamp - clockOffset) / 1000;
+            const adjustedTime = Math.max(0, targetTime + Math.max(0, elapsed));
+            if (Math.abs(audioElement.currentTime - adjustedTime) > 0.08) {
+              audioElement.currentTime = adjustedTime;
+            }
+          } else if (typeof targetTime === 'number') {
+            audioElement.currentTime = targetTime;
+          }
+
+          audioElement.play().then(() => {
+            hideAudioUnlockOverlay();
+          }).catch(err => {
+            console.log('Local audio waiting for interaction:', err);
+            showAudioUnlockOverlay();
+          });
+        }
+
+        setPlayingState(true);
       }
 
       function applySyncPause(targetTime) {
+        if (remoteAudioElement && remoteAudioElement.srcObject) {
+          remoteAudioElement.pause();
+        }
         if (typeof targetTime === 'number') {
           audioElement.currentTime = targetTime;
         }
@@ -3862,6 +3998,17 @@
         if (audioElement.paused) {
           audioElement.play().then(() => {
             setPlayingState(true);
+            // Ensure WebRTC stream is flowing to room peers
+            if (isHost && activeConnections.size > 0 && streamDestNode && streamDestNode.stream) {
+              activeConnections.forEach(conn => {
+                if (conn.open) {
+                  try { peer.call(conn.peer, streamDestNode.stream); } catch(e) {}
+                }
+              });
+            } else if (!isHost && hostConnection && streamDestNode && streamDestNode.stream) {
+              try { peer.call(hostConnection.peer, streamDestNode.stream); } catch(e) {}
+            }
+
             broadcastSyncPacket({
               type: 'PLAY',
               trackIndex: currentTrackIndex,
@@ -4363,6 +4510,7 @@
           const val = parseFloat(e.target.value);
           if (gainNode) gainNode.gain.value = val;
           audioElement.volume = val;
+          if (remoteAudioElement) remoteAudioElement.volume = val;
           StoragePrefs.set('volume', val);
           if (val === 0) {
             volHighIcon.style.display = 'none';
@@ -4609,6 +4757,13 @@
         window.addEventListener('click', unlockAudio);
         window.addEventListener('keydown', unlockAudio);
         window.addEventListener('touchstart', unlockAudio);
+        window.addEventListener('click', unlockAllAudio);
+        window.addEventListener('touchstart', unlockAllAudio);
+
+        const unlockBanner = document.getElementById('audio-unlock-overlay');
+        const unlockBtn = document.getElementById('btn-unlock-action');
+        if (unlockBanner) unlockBanner.addEventListener('click', unlockAllAudio);
+        if (unlockBtn) unlockBtn.addEventListener('click', (e) => { e.stopPropagation(); unlockAllAudio(); });
       }
 
       if (document.readyState === 'loading') {
@@ -4694,6 +4849,19 @@
         <button class="btn-secondary" id="btn-load-demo-lrc" style="padding: 8px 14px; border-radius: var(--radius-md);">Load Demo</button>
         <button class="btn-primary" id="btn-save-lrc" style="padding: 8px 18px; border-radius: var(--radius-md);">Save & Sync</button>
       </div>
+    </div>
+  </div>
+
+
+  <!-- Audio Unlock Overlay for Mobile Browsers -->
+  <div class="audio-unlock-overlay" id="audio-unlock-overlay" style="display: none;">
+    <div class="audio-unlock-pill">
+      <span class="audio-unlock-icon">🔊</span>
+      <div class="audio-unlock-text">
+        <strong>Tap to Join Room Audio</strong>
+        <span>Browser requires one tap to hear music</span>
+      </div>
+      <button class="btn-unlock-action" id="btn-unlock-action">Enable Sound</button>
     </div>
   </div>
 
