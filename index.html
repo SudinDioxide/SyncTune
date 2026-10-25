@@ -1618,26 +1618,7 @@
     .reaction-btn:active {
       transform: scale(0.9);
     }
-    .btn-soundboard-trigger {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      background: var(--accent-gradient);
-      color: #ffffff;
-      border: none;
-      padding: 6px 12px;
-      border-radius: var(--radius-full);
-      font-size: 0.76rem;
-      font-weight: 700;
-      cursor: pointer;
-      margin-left: 4px;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
-      transition: var(--transition-smooth);
-    }
-    .btn-soundboard-trigger:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.55);
-    }
+    
 
     /* Floating Reaction Particles */
     #reaction-particles-container {
@@ -1691,50 +1672,7 @@
       }
     }
 
-    /* DJ Soundboard Modal */
-    .soundboard-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-top: 18px;
-    }
-    .soundboard-pad {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 22px 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border-glass);
-      border-radius: var(--radius-lg);
-      cursor: pointer;
-      transition: var(--transition-smooth);
-      user-select: none;
-    }
-    .soundboard-pad:hover {
-      background: rgba(99, 102, 241, 0.14);
-      border-color: var(--accent-primary);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
-    }
-    .soundboard-pad:active, .soundboard-pad.pad-pressed {
-      transform: scale(0.94);
-      background: var(--accent-gradient);
-      box-shadow: 0 0 28px rgba(99, 102, 241, 0.6);
-    }
-    .soundboard-pad-icon {
-      font-size: 2.2rem;
-    }
-    .soundboard-pad-title {
-      font-size: 0.92rem;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-    .soundboard-pad-desc {
-      font-size: 0.72rem;
-      color: var(--text-dim);
-    }
+    
 
     /* Track Voting & Auto-DJ Banner */
     .autodj-banner {
@@ -1972,6 +1910,80 @@
     @keyframes pulseGlow {
       0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6)); }
       50% { transform: scale(1.18); filter: drop-shadow(0 0 12px rgba(255, 255, 255, 1)); }
+    }
+
+
+    /* Online Lyrics Search Modal & Spinner */
+    .lyrics-searching-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(99, 102, 241, 0.2);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spinLyrics 0.8s linear infinite;
+    }
+    @keyframes spinLyrics {
+      to { transform: rotate(360deg); }
+    }
+    .lyrics-search-result-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      transition: var(--transition-smooth);
+    }
+    .lyrics-search-result-item:hover {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: var(--accent-primary);
+    }
+    .lyrics-result-info {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      overflow: hidden;
+    }
+    .lyrics-result-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lyrics-result-meta {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .lyrics-badge-synced {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: var(--radius-full);
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      margin-left: 6px;
+    }
+    .btn-apply-lyrics {
+      background: var(--accent-gradient);
+      color: #ffffff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius-full);
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: var(--transition-smooth);
+    }
+    .btn-apply-lyrics:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
     }
 
   </style>
@@ -3128,7 +3140,7 @@
 
         // On host: relay incoming guest packets to all other peers in the room
         if (isHost && sourceConn) {
-          const relayTypes = ['ROOM_ADD_TRACK', 'PLAYLIST_SNAPSHOT', 'REQUEST_PLAY_TRACK', 'FILE_START', 'FILE_CHUNK', 'FILE_COMPLETE', 'PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE', 'ROOM_REACTION', 'ROOM_SOUND_EFFECT', 'TRACK_VOTE', 'VOTES_SYNC'];
+          const relayTypes = ['ROOM_ADD_TRACK', 'PLAYLIST_SNAPSHOT', 'REQUEST_PLAY_TRACK', 'FILE_START', 'FILE_CHUNK', 'FILE_COMPLETE', 'PLAY', 'PAUSE', 'SEEK', 'TRACK_CHANGE', 'ROOM_REACTION', 'LYRICS_SYNC', 'TRACK_VOTE', 'VOTES_SYNC'];
           if (relayTypes.includes(data.type)) {
             activeConnections.forEach(conn => {
               if (conn.open && conn.peer !== sourceConn.peer) {
@@ -3143,9 +3155,14 @@
             spawnReactionParticle(data.emoji, data.senderNick);
             break;
 
-          case 'ROOM_SOUND_EFFECT':
-            playDJSound(data.sound);
-            showToast(`🎛️ ${data.senderNick || 'Peer'} played DJ ${data.sound.toUpperCase()}!`, 'info');
+          case 'LYRICS_SYNC':
+            if (data.trackId && data.lyrics) {
+              lyricsCache.set(data.trackId, data.lyrics);
+              const currTrack = (currentTrackIndex >= 0 && playlist[currentTrackIndex]) ? playlist[currentTrackIndex] : demoTrackMetadata;
+              if (currTrack && currTrack.id === data.trackId) {
+                loadLyricsForCurrentTrack();
+              }
+            }
             break;
 
           case 'TRACK_VOTE':
@@ -3426,111 +3443,53 @@
        * 5B. PARTY FEATURES: SOUNDBOARD, EMOJI REACTIONS & SYNCHRONIZED LYRICS
        * ------------------------------------------------------------------------ */
 
-      // 1. DJ Soundboard Web Audio Synthesizer
-      function playDJSound(soundType) {
-        initAudioContext();
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      // 1. Online Synchronized Lyrics Engine (LRCLIB Integration)
+      async function fetchOnlineLyricsForTrack(track) {
+        if (!track || track.isDemo) return null;
 
-        const now = audioCtx.currentTime;
-        const masterFx = audioCtx.createGain();
-        masterFx.gain.value = 0.75;
-        masterFx.connect(audioCtx.destination);
-        if (streamDestNode) masterFx.connect(streamDestNode);
+        let cleanTitle = (track.title || '')
+          .replace(/\.[^/.]+$/, '')
+          .replace(/\s*[\(\[](?:official|video|audio|lyrics?|remaster(?:ed)?|hd|4k|hq|music video|feat\.?|ft\.?).*?[\)\]]/gi, '')
+          .trim();
 
-        if (soundType === 'airhorn') {
-          // Classic 3-burst reggae/dancehall DJ airhorn
-          const freqs = [466.16, 698.46, 932.33]; // Bb chord
-          const bursts = [
-            { start: 0, dur: 0.12 },
-            { start: 0.16, dur: 0.12 },
-            { start: 0.32, dur: 0.65 }
-          ];
+        let cleanArtist = (track.artist && !track.artist.toLowerCase().includes('unknown'))
+          ? track.artist.replace(/\s*[\(\[].*?[\)\]]/g, '').trim()
+          : '';
 
-          bursts.forEach(b => {
-            freqs.forEach(f => {
-              const osc = audioCtx.createOscillator();
-              const g = audioCtx.createGain();
-              osc.type = 'sawtooth';
-              osc.frequency.setValueAtTime(f, now + b.start);
-              if (b.dur > 0.5) {
-                osc.frequency.exponentialRampToValueAtTime(f * 0.88, now + b.start + b.dur);
+        try {
+          // 1. Exact match attempt
+          let url = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}`;
+          if (cleanArtist) url += `&artist_name=${encodeURIComponent(cleanArtist)}`;
+          if (track.duration && track.duration > 15) url += `&duration=${Math.round(track.duration)}`;
+
+          let resp = await fetch(url);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.syncedLyrics) {
+              return data.syncedLyrics;
+            }
+          }
+
+          // 2. Query search fallback
+          const query = `${cleanTitle} ${cleanArtist}`.trim();
+          resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+          if (resp.ok) {
+            const results = await resp.json();
+            if (Array.isArray(results) && results.length > 0) {
+              const bestSynced = results.find(r => r.syncedLyrics && Math.abs((r.duration || 0) - (track.duration || 0)) < 15)
+                              || results.find(r => r.syncedLyrics)
+                              || results[0];
+              if (bestSynced && bestSynced.syncedLyrics) {
+                return bestSynced.syncedLyrics;
+              } else if (bestSynced && bestSynced.plainLyrics) {
+                return bestSynced.plainLyrics;
               }
-              g.gain.setValueAtTime(0.001, now + b.start);
-              g.gain.linearRampToValueAtTime(0.18, now + b.start + 0.02);
-              g.gain.setValueAtTime(0.18, now + b.start + b.dur - 0.03);
-              g.gain.linearRampToValueAtTime(0.001, now + b.start + b.dur);
-
-              osc.connect(g);
-              g.connect(masterFx);
-              osc.start(now + b.start);
-              osc.stop(now + b.start + b.dur + 0.05);
-            });
-          });
-        } else if (soundType === 'bassdrop') {
-          // Subwoofer 808 frequency drop sweep 160Hz -> 35Hz
-          const osc = audioCtx.createOscillator();
-          const g = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(160, now);
-          osc.frequency.exponentialRampToValueAtTime(32, now + 1.1);
-
-          g.gain.setValueAtTime(0.85, now);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
-
-          osc.connect(g);
-          g.connect(masterFx);
-          osc.start(now);
-          osc.stop(now + 1.3);
-        } else if (soundType === 'scratch') {
-          // Filtered vinyl scratch
-          const bufferSize = Math.floor(audioCtx.sampleRate * 0.35);
-          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-
-          const noise = audioCtx.createBufferSource();
-          noise.buffer = buffer;
-          const filter = audioCtx.createBiquadFilter();
-          filter.type = 'bandpass';
-          filter.Q.value = 6;
-          filter.frequency.setValueAtTime(800, now);
-          filter.frequency.linearRampToValueAtTime(3200, now + 0.12);
-          filter.frequency.linearRampToValueAtTime(450, now + 0.32);
-
-          const g = audioCtx.createGain();
-          g.gain.setValueAtTime(0.6, now);
-          g.gain.exponentialRampToValueAtTime(0.01, now + 0.34);
-
-          noise.connect(filter);
-          filter.connect(g);
-          g.connect(masterFx);
-          noise.start(now);
-          noise.stop(now + 0.35);
-        } else if (soundType === 'cheer') {
-          // Crowd cheer / applause simulation
-          const bufferSize = Math.floor(audioCtx.sampleRate * 1.5);
-          const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.sin(i / 150);
-
-          const noise = audioCtx.createBufferSource();
-          noise.buffer = buffer;
-          const filter = audioCtx.createBiquadFilter();
-          filter.type = 'bandpass';
-          filter.frequency.setValueAtTime(1400, now);
-          filter.Q.value = 3;
-
-          const g = audioCtx.createGain();
-          g.gain.setValueAtTime(0.01, now);
-          g.gain.linearRampToValueAtTime(0.5, now + 0.3);
-          g.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-
-          noise.connect(filter);
-          filter.connect(g);
-          g.connect(masterFx);
-          noise.start(now);
-          noise.stop(now + 1.55);
+            }
+          }
+        } catch(e) {
+          console.warn('LRCLIB auto-fetch error:', e);
         }
+        return null;
       }
 
       // 2. Floating Emoji Reactions Particle System
@@ -3609,7 +3568,7 @@
         '[00:32.00] SyncTune — Sound Without Boundaries'
       ].join('\n');
 
-      function loadLyricsForCurrentTrack() {
+      async function loadLyricsForCurrentTrack() {
         const titleEl = document.getElementById('lyrics-song-title');
         const artistEl = document.getElementById('lyrics-song-artist');
         const container = document.getElementById('lyrics-lines-container');
@@ -3627,6 +3586,35 @@
           lrcText = track.lyrics;
         }
 
+        // Auto-search online if not yet cached and not demo
+        if (!lrcText && !track.isDemo) {
+          container.innerHTML = `
+            <div class="lyrics-empty-state">
+              <div class="lyrics-searching-spinner"></div>
+              <span style="font-weight: 600;">Searching online lyrics database...</span>
+              <span style="font-size: 0.78rem; color: var(--text-dim);">${escapeHtml(track.title)}</span>
+            </div>
+          `;
+
+          const onlineLrc = await fetchOnlineLyricsForTrack(track);
+          // Verify user is still on this track
+          const currentNow = (currentTrackIndex >= 0 && playlist[currentTrackIndex]) ? playlist[currentTrackIndex] : demoTrackMetadata;
+          if (currentNow.id !== track.id) return;
+
+          if (onlineLrc) {
+            lrcText = onlineLrc;
+            lyricsCache.set(track.id, onlineLrc);
+            showToast('✓ Synced online lyrics loaded!', 'success');
+
+            // Broadcast lyrics to room peers
+            broadcastSyncPacket({
+              type: 'LYRICS_SYNC',
+              trackId: track.id,
+              lyrics: onlineLrc
+            });
+          }
+        }
+
         currentTrackLyrics = parseLRC(lrcText);
         activeLyricIndex = -1;
 
@@ -3635,11 +3623,16 @@
             <div class="lyrics-empty-state">
               <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
               <span>No synchronized lyrics found for this track.</span>
-              <button class="btn-paste-lrc" id="btn-empty-add-lrc">+ Add / Paste .LRC Lines</button>
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <button class="btn-paste-lrc btn-trigger-search-modal">🔍 Search Online</button>
+                <button class="btn-paste-lrc btn-trigger-paste-modal">+ Paste .LRC</button>
+              </div>
             </div>
           `;
-          const emptyBtn = document.getElementById('btn-empty-add-lrc');
-          if (emptyBtn) emptyBtn.addEventListener('click', openLyricsModal);
+          const sBtn = container.querySelector('.btn-trigger-search-modal');
+          const pBtn = container.querySelector('.btn-trigger-paste-modal');
+          if (sBtn) sBtn.addEventListener('click', openOnlineLyricsSearchModal);
+          if (pBtn) pBtn.addEventListener('click', openLyricsModal);
           return;
         }
 
@@ -3691,6 +3684,97 @@
               el.classList.remove('active-karaoke-line');
             }
           });
+        }
+      }
+
+      function openOnlineLyricsSearchModal() {
+        const modal = document.getElementById('online-lyrics-modal');
+        const input = document.getElementById('online-lyrics-search-input');
+        const track = (currentTrackIndex >= 0 && playlist[currentTrackIndex]) ? playlist[currentTrackIndex] : demoTrackMetadata;
+
+        const defaultQuery = track.title ? (track.title.replace(/\.[^/.]+$/, '').trim() + (track.artist && !track.artist.includes('Unknown') ? ' ' + track.artist : '')) : '';
+        input.value = defaultQuery;
+        modal.classList.add('open');
+        if (defaultQuery) {
+          executeOnlineLyricsSearch(defaultQuery);
+        }
+      }
+
+      async function executeOnlineLyricsSearch(query) {
+        const resultsContainer = document.getElementById('online-lyrics-results');
+        if (!resultsContainer) return;
+
+        resultsContainer.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 30px; color: var(--text-dim);">
+            <div class="lyrics-searching-spinner"></div>
+            <span>Searching LRCLIB database...</span>
+          </div>
+        `;
+
+        try {
+          const resp = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query.trim())}`);
+          if (!resp.ok) throw new Error('Search failed');
+          const data = await resp.json();
+
+          if (!Array.isArray(data) || data.length === 0) {
+            resultsContainer.innerHTML = `
+              <div style="text-align: center; padding: 30px; color: var(--text-dim); font-size: 0.85rem;">
+                No matching lyrics found. Try another search query or paste custom .LRC text.
+              </div>
+            `;
+            return;
+          }
+
+          let html = '';
+          data.slice(0, 8).forEach((item, idx) => {
+            const hasSynced = !!item.syncedLyrics;
+            const dur = item.duration ? Math.floor(item.duration / 60) + ':' + String(Math.floor(item.duration % 60)).padStart(2, '0') : '';
+            html += `
+              <div class="lyrics-search-result-item">
+                <div class="lyrics-result-info">
+                  <div class="lyrics-result-title">
+                    ${escapeHtml(item.trackName || item.name || 'Unknown')}
+                    ${hasSynced ? '<span class="lyrics-badge-synced">Synced LRC</span>' : '<span style="font-size: 0.65rem; color: var(--text-dim); margin-left: 6px;">Plain</span>'}
+                  </div>
+                  <div class="lyrics-result-meta">
+                    ${escapeHtml(item.artistName || 'Unknown')} ${item.albumName ? '• ' + escapeHtml(item.albumName) : ''} ${dur ? '• ' + dur : ''}
+                  </div>
+                </div>
+                <button class="btn-apply-lyrics" data-result-idx="${idx}">Apply & Sync</button>
+              </div>
+            `;
+          });
+          resultsContainer.innerHTML = html;
+
+          resultsContainer.querySelectorAll('.btn-apply-lyrics').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const idx = parseInt(btn.getAttribute('data-result-idx'), 10);
+              const chosen = data[idx];
+              if (!chosen) return;
+
+              const lyricsToApply = chosen.syncedLyrics || chosen.plainLyrics || '';
+              const track = (currentTrackIndex >= 0 && playlist[currentTrackIndex]) ? playlist[currentTrackIndex] : demoTrackMetadata;
+
+              lyricsCache.set(track.id, lyricsToApply);
+              loadLyricsForCurrentTrack();
+              document.getElementById('online-lyrics-modal').classList.remove('open');
+              showToast(`✓ Applied synchronized lyrics for "${track.title}"!`, 'success');
+
+              // Broadcast to room
+              broadcastSyncPacket({
+                type: 'LYRICS_SYNC',
+                trackId: track.id,
+                lyrics: lyricsToApply
+              });
+            });
+          });
+
+        } catch(e) {
+          resultsContainer.innerHTML = `
+            <div style="text-align: center; padding: 25px; color: #ef4444; font-size: 0.85rem;">
+              Could not connect to online lyrics service. Please check your internet connection or paste lyrics manually.
+            </div>
+          `;
         }
       }
 
@@ -4847,49 +4931,38 @@
     <button class="reaction-btn" data-emoji="⚡" title="Electric Energy">⚡</button>
     <button class="reaction-btn" data-emoji="🎵" title="Music Vibe">🎵</button>
     <button class="reaction-btn" data-emoji="👏" title="Applause">👏</button>
-    <button class="btn-soundboard-trigger" id="btn-soundboard-trigger" title="DJ Soundboard FX">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-      <span>DJ FX</span>
-    </button>
+
   </div>
 
   <!-- Particles Overlay -->
   <div id="reaction-particles-container"></div>
 
-  <!-- DJ Soundboard Modal -->
-  <div class="modal-backdrop" id="soundboard-modal">
-    <div class="modal-card" style="max-width: 440px;">
+  
+  </div>
+
+  <!-- Online Lyrics Search Modal (LRCLIB) -->
+  <div class="modal-backdrop" id="online-lyrics-modal">
+    <div class="modal-card" style="max-width: 540px;">
       <div class="modal-header">
         <h3 style="display: flex; align-items: center; gap: 8px;">
-          <span>🎛️</span>
-          <span>Room DJ Soundboard</span>
+          <span>🔍</span>
+          <span>Search Online Synchronized Lyrics</span>
         </h3>
-        <button class="btn-action btn-icon-only" id="btn-close-soundboard">✕</button>
+        <button class="btn-action btn-icon-only" id="btn-close-online-lyrics">✕</button>
       </div>
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;">
-        Tap any pad to blast sound effects across all connected devices in sync!
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin: 8px 0 12px 0;">
+        Powered by LRCLIB — free, crowdsourced real-time synchronized karaoke lyrics.
       </p>
-
-      <div class="soundboard-grid">
-        <div class="soundboard-pad" data-sound="airhorn">
-          <span class="soundboard-pad-icon">📯</span>
-          <span class="soundboard-pad-title">Airhorn</span>
-          <span class="soundboard-pad-desc">Classic 3-burst ragga horn</span>
-        </div>
-        <div class="soundboard-pad" data-sound="scratch">
-          <span class="soundboard-pad-icon">🎧</span>
-          <span class="soundboard-pad-title">Vinyl Scratch</span>
-          <span class="soundboard-pad-desc">Rewind record drop</span>
-        </div>
-        <div class="soundboard-pad" data-sound="bassdrop">
-          <span class="soundboard-pad-icon">💥</span>
-          <span class="soundboard-pad-title">808 Bass Drop</span>
-          <span class="soundboard-pad-desc">Subwoofer rumble sweep</span>
-        </div>
-        <div class="soundboard-pad" data-sound="cheer">
-          <span class="soundboard-pad-icon">👏</span>
-          <span class="soundboard-pad-title">Crowd Cheer</span>
-          <span class="soundboard-pad-desc">Applause & hype burst</span>
+      <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <input type="text" id="online-lyrics-search-input" placeholder="Song title, artist name..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.85rem; padding: 10px 14px;">
+        <button class="btn-primary" id="btn-exec-lyrics-search" style="padding: 10px 16px; border-radius: var(--radius-md); font-weight: 700; display: flex; align-items: center; gap: 5px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </button>
+      </div>
+      <div id="online-lyrics-results" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+        <div style="text-align: center; color: var(--text-dim); padding: 30px 10px; font-size: 0.85rem;">
+          Type a song name above to search synchronized lyrics database.
         </div>
       </div>
     </div>
