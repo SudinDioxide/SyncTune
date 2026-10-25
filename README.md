@@ -94,19 +94,20 @@ Because **SyncTune** is a complete, self-contained single-file application (`ind
 
 ### Method 1: Instant GitHub Pages Setup (Recommended)
 
-1. Create a new repository on [GitHub](https://github.com/new) (e.g. `SyncTune`).
-2. In your terminal or command prompt inside this folder, run:
+1. Create a new repository on [GitHub](https://github.com/new) named **`SyncTune`** (or `MusicPlayer`).
+2. In your terminal inside this folder, run:
    ```bash
-   git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/<YOUR_REPOSITORY_NAME>.git
+   git remote add origin https://github.com/SudinDioxide/SyncTune.git
    git branch -M main
    git push -u origin main
    ```
+   *(Note: If you named your repository `MusicPlayer` instead, replace `SyncTune.git` with `MusicPlayer.git`)*
 3. On GitHub, navigate to your repository:
    - Go to **Settings** > **Pages** (under "Code and automation" in the left sidebar).
    - Under **Build and deployment** > **Source**, choose **Deploy from a branch**.
    - Select Branch: **`main`**, Folder: **`/(root)`**, and click **Save**.
-4. In about 1 minute, GitHub will give you your live URL:
-   `https://<YOUR_GITHUB_USERNAME>.github.io/<YOUR_REPOSITORY_NAME>/`
+4. In about 1 minute, your music player will be live at:
+   **`https://SudinDioxide.github.io/SyncTune/`**
 
 ### Method 2: Automated GitHub Actions
 
