@@ -5121,7 +5121,8 @@
       let cloudTracksCache = [];
 
       function initSupabase() {
-        const url = localStorage.getItem('synctune_sb_url') || '';
+        const defaultSbUrl = 'https://lennntnwuxdryiphyfhr.supabase.co';
+        const url = localStorage.getItem('synctune_sb_url') || defaultSbUrl;
         const key = localStorage.getItem('synctune_sb_anon_key') || '';
 
         const urlInput = document.getElementById('sb-input-url');
@@ -5681,7 +5682,7 @@
         </div>
 
         <label class="cloud-config-label">Supabase Project URL</label>
-        <input type="text" class="cloud-config-input" id="sb-input-url" placeholder="https://your-project.supabase.co">
+        <input type="text" class="cloud-config-input" id="sb-input-url" placeholder="https://your-project.supabase.co" value="https://lennntnwuxdryiphyfhr.supabase.co">
 
         <label class="cloud-config-label">Supabase Anon Key (Public Key)</label>
         <input type="password" class="cloud-config-input" id="sb-input-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
