@@ -3510,7 +3510,7 @@
         if (remoteAudioElement && remoteAudioElement.srcObject) {
           remoteAudioElement.pause();
         }
-        if (typeof targetTime === 'number') {
+        if (!isHost && typeof targetTime === 'number' && targetTime > 0) {
           audioElement.currentTime = targetTime;
         }
         audioElement.pause();
@@ -3915,12 +3915,13 @@
         if (track.isDemo) {
           audioSrc = demoAudioBlobUrl || '';
         } else if (track.url) {
-          audioSrc = track.url; // Supabase Cloud direct stream
+          audioSrc = track.url;
         } else if (track.fileBlob) {
           audioSrc = URL.createObjectURL(track.fileBlob);
         }
 
-        if (audioSrc) {
+        // Only assign src and load if source changed (prevents discarding playback buffer on resume)
+        if (audioSrc && audioElement.src !== audioSrc) {
           audioElement.src = audioSrc;
           audioElement.load();
         }
@@ -3989,18 +3990,19 @@
           audioCtx.resume();
         }
 
-        // Detect if audio is actively playing on either local element or remote WebRTC stream
+        // Check if actively playing on either local element, remote stream, or global state
+        const localIsPlaying = (!audioElement.paused && !audioElement.ended);
         const remoteIsPlaying = (remoteAudioElement && !remoteAudioElement.paused && remoteAudioElement.srcObject);
-        const localIsPlaying = (!audioElement.paused && audioElement.currentTime > 0);
-        const isCurrentlyPlaying = isPlaying || remoteIsPlaying || localIsPlaying;
+        const isCurrentlyPlaying = isPlaying || localIsPlaying || remoteIsPlaying;
 
         if (isCurrentlyPlaying) {
-          // PAUSE ACTION
+          // --- 1. PAUSE ---
           audioElement.pause();
           if (remoteAudioElement && remoteAudioElement.srcObject) {
             remoteAudioElement.pause();
           }
           setPlayingState(false);
+
           broadcastSyncPacket({
             type: 'PAUSE',
             trackIndex: currentTrackIndex,
@@ -4008,18 +4010,22 @@
             trackMeta: getCurrentTrackPayload()
           });
         } else {
-          // PLAY ACTION
-          if (currentTrackIndex === -1) {
-            if (playlist.length > 0) {
-              playTrackAtIndex(0);
-              return;
-            } else {
-              loadTrackIntoPlayer(demoTrackMetadata, false);
-            }
+          // --- 2. PLAY / RESUME ---
+          if (currentTrackIndex === -1 && playlist.length > 0) {
+            playTrackAtIndex(0);
+            return;
+          }
+
+          // If no source is loaded yet, load track without autoPlay
+          if (!audioElement.src || audioElement.src === '' || audioElement.src === window.location.href) {
+            const trackToLoad = (currentTrackIndex >= 0 && playlist[currentTrackIndex])
+              ? playlist[currentTrackIndex]
+              : demoTrackMetadata;
+            loadTrackIntoPlayer(trackToLoad, false);
           }
 
           if (remoteAudioElement && remoteAudioElement.srcObject && !isHost) {
-            remoteAudioElement.play().catch(e => console.log('Remote play error:', e));
+            remoteAudioElement.play().catch(e => console.log('Remote stream resume notice:', e));
           }
 
           audioElement.play().then(() => {
@@ -4039,28 +4045,39 @@
               trackMeta: getCurrentTrackPayload()
             });
           }).catch(e => {
-            console.log('Autoplay prevented:', e);
+            console.warn('Audio resume error, retrying with context:', e);
+            if (audioCtx && audioCtx.state === 'suspended') {
+              audioCtx.resume().then(() => audioElement.play()).then(() => setPlayingState(true)).catch(() => {});
+            }
             setPlayingState(false);
           });
         }
       }
 
       function setPlayingState(playing) {
-        isPlaying = playing;
+        isPlaying = !!playing;
         const playIcon = document.getElementById('play-icon');
         const pauseIcon = document.getElementById('pause-icon');
         const albumDisc = document.getElementById('album-art-img');
 
-        if (playing) {
-          playIcon.style.display = 'none';
-          pauseIcon.style.display = 'block';
-          albumDisc.classList.add('playing');
-          albumDisc.classList.remove('paused');
-        } else {
-          playIcon.style.display = 'block';
-          pauseIcon.style.display = 'none';
-          albumDisc.classList.add('paused');
+        if (playIcon && pauseIcon) {
+          if (isPlaying) {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+          } else {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+          }
         }
+
+        if (albumDisc) {
+          if (isPlaying) {
+            albumDisc.classList.remove('paused');
+          } else {
+            albumDisc.classList.add('paused');
+          }
+        }
+
         renderPlaylistUI();
       }
 
@@ -4302,9 +4319,13 @@
 
         container.querySelectorAll('.track-item').forEach(el => {
           el.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-delete-track')) return;
+            if (e.target.closest('.btn-delete-track') || e.target.closest('.btn-vote-track')) return;
             const idx = parseInt(el.getAttribute('data-index'), 10);
-            playTrackAtIndex(idx);
+            if (idx === currentTrackIndex) {
+              togglePlayPause();
+            } else {
+              playTrackAtIndex(idx);
+            }
           });
         });
 
@@ -4456,6 +4477,19 @@
        * 10. SETUP EVENT LISTENERS
        * ------------------------------------------------------------------------ */
       function setupEventListeners() {
+        // Native audio element state sync
+        audioElement.addEventListener('play', () => setPlayingState(true));
+        audioElement.addEventListener('pause', () => setPlayingState(false));
+        audioElement.addEventListener('playing', () => setPlayingState(true));
+
+        // Spacebar shortcut for Play/Pause
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            togglePlayPause();
+          }
+        });
+
         // Play / Pause Hero Button
         document.getElementById('btn-play-pause').addEventListener('click', togglePlayPause);
         document.getElementById('btn-next').addEventListener('click', playNextTrack);
