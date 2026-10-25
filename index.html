@@ -20,6 +20,8 @@
   
   <!-- jsmediatags for ID3 / FLAC metadata extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 
   <style>
     /* ==========================================================================
@@ -1986,6 +1988,183 @@
       box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
     }
 
+  
+    /* ==========================================================================
+       SUPABASE CLOUD DATABASE & STORAGE STYLES
+       ========================================================================== */
+    .cloud-status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #94a3b8;
+      display: inline-block;
+      margin-left: 3px;
+      transition: background 0.3s ease;
+    }
+    .cloud-status-dot.connected {
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+    }
+    .btn-add-cloud {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .btn-add-cloud:hover {
+      background: rgba(16, 185, 129, 0.22);
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #6ee7b7;
+    }
+    .track-badge-cloud {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      font-size: 0.65rem;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      font-weight: 700;
+      margin-left: 4px;
+    }
+    .supabase-tabs {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+    }
+    .supabase-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: var(--transition-smooth);
+    }
+    .supabase-tab-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .supabase-tab-content {
+      display: none;
+    }
+    .supabase-tab-content.active {
+      display: block;
+    }
+    .cloud-track-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      gap: 12px;
+      transition: var(--transition-smooth);
+    }
+    .cloud-track-item:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    .cloud-track-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .cloud-track-title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cloud-track-meta {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      display: flex;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .cloud-track-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-cloud-play {
+      background: var(--accent-gradient);
+      color: #fff;
+      border: none;
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-cloud-add {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-glass);
+      color: var(--text-main);
+      padding: 5px 10px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-cloud-del {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
+      color: #f87171;
+      padding: 5px 8px;
+      border-radius: var(--radius-full);
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .cloud-upload-dropzone {
+      border: 2px dashed rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.04);
+      border-radius: var(--radius-lg);
+      padding: 28px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+    .cloud-upload-dropzone:hover {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.7);
+    }
+    .cloud-config-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    .cloud-config-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      display: block;
+    }
+
   </style>
 </head>
 <body data-theme="neon" data-mobile-view="player">
@@ -2025,6 +2204,15 @@
       </button>
 
       <!-- Sync / Room Button -->
+      
+      <!-- Supabase Cloud DB Button -->
+      <button class="btn-action" id="open-supabase-modal-btn" title="Supabase Cloud Database & Storage">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
+        <span>Cloud DB</span>
+        <span class="cloud-status-dot" id="cloud-status-indicator"></span>
+      </button>
       <button class="btn-action btn-primary" id="open-room-modal-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -2250,6 +2438,11 @@
             Add Folder
           </button>
 
+          
+          <button class="btn-add-music btn-add-cloud" id="btn-open-cloud-lib" title="Browse & Stream from Supabase Cloud Library">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+            Cloud Library
+          </button>
           <button class="btn-action btn-icon-only" id="btn-clear-db" title="Clear Stored Library" style="border-radius: var(--radius-md);">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
@@ -4920,6 +5113,475 @@
         initializeApp();
       }
 
+    
+      /* ==========================================================================
+         SUPABASE CLOUD DATABASE & STORAGE LOGIC
+         ========================================================================== */
+      let supabaseClient = null;
+      let cloudTracksCache = [];
+
+      function initSupabase() {
+        const url = localStorage.getItem('synctune_sb_url') || '';
+        const key = localStorage.getItem('synctune_sb_anon_key') || '';
+
+        const urlInput = document.getElementById('sb-input-url');
+        const keyInput = document.getElementById('sb-input-key');
+        if (urlInput) urlInput.value = url;
+        if (keyInput) keyInput.value = key;
+
+        if (url && key && window.supabase) {
+          try {
+            supabaseClient = window.supabase.createClient(url, key);
+            updateSupabaseStatusUI(true, 'Connected to Supabase (Postgres & Storage)');
+            fetchCloudTracks();
+            return;
+          } catch(e) {
+            console.warn('Supabase init error:', e);
+          }
+        }
+        updateSupabaseStatusUI(false, 'Not configured (Click to connect database)');
+      }
+
+      function updateSupabaseStatusUI(isConnected, statusText) {
+        const dot1 = document.getElementById('cloud-status-indicator');
+        const dot2 = document.getElementById('sb-settings-status-dot');
+        const textEl = document.getElementById('sb-settings-status-text');
+
+        if (dot1) dot1.classList.toggle('connected', isConnected);
+        if (dot2) dot2.classList.toggle('connected', isConnected);
+        if (textEl) {
+          textEl.textContent = statusText;
+          textEl.style.color = isConnected ? '#10b981' : 'var(--text-dim)';
+        }
+      }
+
+      async function testAndSaveSupabaseConfig(url, key) {
+        if (!url || !key) {
+          showToast('Please provide both Project URL and Anon Key', 'error');
+          return;
+        }
+
+        try {
+          const client = window.supabase.createClient(url, key);
+          // Test database query
+          const { data, error } = await client.from('tracks').select('count', { count: 'exact', head: true });
+          if (error && error.code !== 'PGRST116') {
+            throw error;
+          }
+
+          localStorage.setItem('synctune_sb_url', url);
+          localStorage.setItem('synctune_sb_anon_key', key);
+          supabaseClient = client;
+
+          updateSupabaseStatusUI(true, 'Connected to Supabase (Postgres & Storage)');
+          showToast('✓ Successfully connected to Supabase!', 'success');
+          fetchCloudTracks();
+        } catch(e) {
+          console.error('Supabase connection test failed:', e);
+          showToast('Connection failed: ' + (e.message || 'Check URL and key'), 'error');
+          updateSupabaseStatusUI(false, 'Connection failed: ' + (e.message || 'Invalid credentials'));
+        }
+      }
+
+      function disconnectSupabase() {
+        localStorage.removeItem('synctune_sb_url');
+        localStorage.removeItem('synctune_sb_anon_key');
+        supabaseClient = null;
+        cloudTracksCache = [];
+
+        const urlInput = document.getElementById('sb-input-url');
+        const keyInput = document.getElementById('sb-input-key');
+        if (urlInput) urlInput.value = '';
+        if (keyInput) keyInput.value = '';
+
+        updateSupabaseStatusUI(false, 'Not configured (Click to connect database)');
+        renderCloudLibraryUI();
+        showToast('Supabase disconnected.', 'info');
+      }
+
+      async function fetchCloudTracks() {
+        if (!supabaseClient) {
+          renderCloudLibraryUI();
+          return;
+        }
+
+        try {
+          const { data, error } = await supabaseClient
+            .from('tracks')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          cloudTracksCache = data || [];
+          renderCloudLibraryUI();
+        } catch(e) {
+          console.warn('Error fetching cloud tracks:', e);
+          const list = document.getElementById('sb-library-list');
+          if (list) {
+            list.innerHTML = `
+              <div style="text-align: center; color: #ef4444; padding: 25px 15px; font-size: 0.82rem;">
+                Could not load cloud songs: ${escapeHtml(e.message || 'Check permissions')}<br>
+                <span style="font-size: 0.74rem; color: var(--text-dim); margin-top: 4px; display: inline-block;">Make sure table "tracks" exists in SQL Editor.</span>
+              </div>
+            `;
+          }
+        }
+      }
+
+      function renderCloudLibraryUI() {
+        const list = document.getElementById('sb-library-list');
+        const searchInput = document.getElementById('sb-library-search');
+        if (!list) return;
+
+        if (!supabaseClient) {
+          list.innerHTML = `
+            <div style="text-align: center; padding: 30px 15px; color: var(--text-dim); font-size: 0.85rem;">
+              <div style="font-size: 1.5rem; margin-bottom: 6px;">☁️</div>
+              <strong>Database Not Connected</strong>
+              <p style="margin-top: 4px; font-size: 0.78rem;">Connect your free Supabase project under the <b>Connection & Setup</b> tab to access cloud music.</p>
+            </div>
+          `;
+          return;
+        }
+
+        const filter = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const filtered = cloudTracksCache.filter(t => {
+          if (!filter) return true;
+          return (t.title && t.title.toLowerCase().includes(filter)) ||
+                 (t.artist && t.artist.toLowerCase().includes(filter));
+        });
+
+        if (filtered.length === 0) {
+          list.innerHTML = `
+            <div style="text-align: center; padding: 35px 15px; color: var(--text-dim); font-size: 0.85rem;">
+              ${cloudTracksCache.length === 0 ? 'No songs in cloud storage yet. Switch to "Upload Song" to add your first track!' : 'No matching cloud songs found.'}
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        filtered.forEach((track, idx) => {
+          const dur = track.duration ? Math.floor(track.duration / 60) + ':' + String(Math.floor(track.duration % 60)).padStart(2, '0') : '--:--';
+          const sizeMb = track.size_bytes ? (track.size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : '';
+
+          html += `
+            <div class="cloud-track-item">
+              <div class="cloud-track-info">
+                <div class="cloud-track-title">${escapeHtml(track.title)}</div>
+                <div class="cloud-track-meta">
+                  <span>${escapeHtml(track.artist || 'Unknown Artist')}</span>
+                  <span>•</span>
+                  <span>${dur}</span>
+                  ${sizeMb ? `<span>•</span><span>${sizeMb}</span>` : ''}
+                </div>
+              </div>
+              <div class="cloud-track-actions">
+                <button class="btn-cloud-play" data-cloud-idx="${idx}" title="Play now in player">▶ Play</button>
+                <button class="btn-cloud-add" data-cloud-idx="${idx}" title="Add to current room playlist">+ Playlist</button>
+                <button class="btn-cloud-del" data-cloud-id="${track.id}" title="Delete from cloud">✕</button>
+              </div>
+            </div>
+          `;
+        });
+        list.innerHTML = html;
+
+        // Bind Play buttons
+        list.querySelectorAll('.btn-cloud-play').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = parseInt(btn.getAttribute('data-cloud-idx'), 10);
+            const chosen = filtered[idx];
+            if (chosen) playCloudTrackDirectly(chosen);
+          });
+        });
+
+        // Bind Add to Playlist buttons
+        list.querySelectorAll('.btn-cloud-add').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = parseInt(btn.getAttribute('data-cloud-idx'), 10);
+            const chosen = filtered[idx];
+            if (chosen) addCloudTrackToCurrentPlaylist(chosen);
+          });
+        });
+
+        // Bind Delete buttons
+        list.querySelectorAll('.btn-cloud-del').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const trackId = btn.getAttribute('data-cloud-id');
+            if (confirm('Delete this track from Supabase cloud database?')) {
+              deleteCloudTrack(trackId);
+            }
+          });
+        });
+      }
+
+      function convertCloudTrackToPlaylistItem(cloudTrack) {
+        return {
+          id: 'cloud_' + cloudTrack.id,
+          title: cloudTrack.title || 'Unknown Title',
+          artist: cloudTrack.artist || 'Unknown Artist',
+          album: cloudTrack.album || 'Cloud Library',
+          duration: Number(cloudTrack.duration) || 0,
+          url: cloudTrack.audio_url,
+          coverUrl: cloudTrack.cover_url || generateCoverPlaceholder(cloudTrack.title || 'Track'),
+          lyrics: cloudTrack.synced_lyrics || '',
+          ext: 'CLOUD',
+          format: 'SUPABASE STREAM',
+          isCloud: true,
+          isSynced: true
+        };
+      }
+
+      function playCloudTrackDirectly(cloudTrack) {
+        const item = convertCloudTrackToPlaylistItem(cloudTrack);
+        // Check if already in playlist
+        const existingIdx = playlist.findIndex(p => p.url === item.url || p.id === item.id);
+        if (existingIdx !== -1) {
+          playTrackAtIndex(existingIdx, true);
+        } else {
+          playlist.unshift(item);
+          currentTrackIndex = 0;
+          loadTrackIntoPlayer(item, true);
+          renderPlaylistUI();
+          broadcastSyncPacket({
+            type: 'TRACK_CHANGE',
+            trackIndex: 0,
+            currentTime: 0,
+            trackMeta: getCurrentTrackPayload()
+          });
+        }
+        const sbModal = document.getElementById('supabase-modal');
+        if (sbModal) sbModal.classList.remove('open');
+        showToast(`▶ Streaming "${item.title}" from Supabase Cloud!`, 'success');
+      }
+
+      function addCloudTrackToCurrentPlaylist(cloudTrack) {
+        const item = convertCloudTrackToPlaylistItem(cloudTrack);
+        if (playlist.some(p => p.url === item.url || p.id === item.id)) {
+          showToast('Track already in playlist', 'info');
+          return;
+        }
+        playlist.push(item);
+        renderPlaylistUI();
+        broadcastSyncSnapshot();
+        showToast(`+ Added "${item.title}" to playlist! (All peers can stream)`, 'success');
+      }
+
+      async function deleteCloudTrack(trackId) {
+        if (!supabaseClient) return;
+        try {
+          const { error } = await supabaseClient.from('tracks').delete().eq('id', trackId);
+          if (error) throw error;
+          cloudTracksCache = cloudTracksCache.filter(t => t.id !== trackId);
+          renderCloudLibraryUI();
+          showToast('Track removed from cloud.', 'info');
+        } catch(e) {
+          showToast('Failed to delete: ' + e.message, 'error');
+        }
+      }
+
+      async function uploadAudioFileToSupabase(file) {
+        if (!supabaseClient) {
+          showToast('Connect to Supabase first under Connection & Setup', 'error');
+          return;
+        }
+
+        const statusBox = document.getElementById('sb-upload-status');
+        const filenameEl = document.getElementById('sb-upload-filename');
+        const percentEl = document.getElementById('sb-upload-percent');
+        const barEl = document.getElementById('sb-upload-bar');
+
+        if (statusBox) statusBox.style.display = 'block';
+        if (filenameEl) filenameEl.textContent = file.name;
+        if (percentEl) percentEl.textContent = 'Uploading...';
+        if (barEl) barEl.style.width = '40%';
+
+        try {
+          // 1. Sanitize file name
+          const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const storagePath = `${Date.now()}_${cleanName}`;
+
+          // 2. Upload file to Supabase Storage bucket 'songs'
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('songs')
+            .upload(storagePath, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            throw new Error('Storage upload failed: ' + uploadError.message + ' (Make sure bucket "songs" exists and is Public)');
+          }
+
+          if (barEl) barEl.style.width = '80%';
+          if (percentEl) percentEl.textContent = 'Saving metadata...';
+
+          // 3. Get Public Streaming URL
+          const { data: publicData } = supabaseClient.storage
+            .from('songs')
+            .getPublicUrl(storagePath);
+
+          const publicAudioUrl = publicData.publicUrl;
+
+          // 4. Extract duration & metadata
+          let duration = 0;
+          try {
+            const tempAudio = new Audio(URL.createObjectURL(file));
+            await new Promise((res) => {
+              tempAudio.addEventListener('loadedmetadata', () => {
+                duration = tempAudio.duration || 0;
+                res();
+              });
+              tempAudio.addEventListener('error', res);
+              setTimeout(res, 2000);
+            });
+          } catch(e) {}
+
+          const cleanTitle = file.name.replace(/\.[^/.]+$/, '').trim();
+
+          // 5. Insert into Supabase 'tracks' table
+          const { error: dbError } = await supabaseClient
+            .from('tracks')
+            .insert([{
+              title: cleanTitle,
+              artist: 'Uploaded Artist',
+              album: 'Cloud Collection',
+              duration: duration,
+              audio_url: publicAudioUrl,
+              size_bytes: file.size,
+              synced_lyrics: ''
+            }]);
+
+          if (dbError) {
+            throw new Error('Database insert failed: ' + dbError.message);
+          }
+
+          if (barEl) barEl.style.width = '100%';
+          if (percentEl) percentEl.textContent = '✓ Complete!';
+          showToast(`✓ "${cleanTitle}" uploaded to Supabase!`, 'success');
+
+          setTimeout(() => {
+            if (statusBox) statusBox.style.display = 'none';
+          }, 2000);
+
+          // Refresh cloud library and switch tab
+          await fetchCloudTracks();
+          const libTabBtn = document.querySelector('[data-sb-tab="library"]');
+          if (libTabBtn) libTabBtn.click();
+
+        } catch(e) {
+          console.error('Supabase upload error:', e);
+          showToast(e.message || 'Upload error', 'error');
+          if (percentEl) percentEl.textContent = 'Failed';
+          if (barEl) barEl.style.background = '#ef4444';
+        }
+      }
+
+      // Modal Open/Close handlers for Supabase
+      const sbModal = document.getElementById('supabase-modal');
+      const openSbBtn = document.getElementById('open-supabase-modal-btn');
+      const openSbLibBtn = document.getElementById('btn-open-cloud-lib');
+      const closeSbBtn = document.getElementById('btn-close-supabase-modal');
+
+      if (openSbBtn) {
+        openSbBtn.addEventListener('click', () => {
+          if (sbModal) sbModal.classList.add('open');
+          fetchCloudTracks();
+        });
+      }
+      if (openSbLibBtn) {
+        openSbLibBtn.addEventListener('click', () => {
+          if (sbModal) {
+            sbModal.classList.add('open');
+            const libTab = document.querySelector('[data-sb-tab="library"]');
+            if (libTab) libTab.click();
+            fetchCloudTracks();
+          }
+        });
+      }
+      if (closeSbBtn) {
+        closeSbBtn.addEventListener('click', () => {
+          if (sbModal) sbModal.classList.remove('open');
+        });
+      }
+
+      // Tab switcher in Supabase Modal
+      document.querySelectorAll('.supabase-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.supabase-tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.supabase-tab-content').forEach(c => c.classList.remove('active'));
+
+          btn.classList.add('active');
+          const tab = btn.getAttribute('data-sb-tab');
+          const pane = document.getElementById('sb-pane-' + tab);
+          if (pane) pane.classList.add('active');
+        });
+      });
+
+      // Filter cloud library search
+      const sbSearchInput = document.getElementById('sb-library-search');
+      if (sbSearchInput) {
+        sbSearchInput.addEventListener('input', () => renderCloudLibraryUI());
+      }
+
+      // Refresh button
+      const refreshBtn = document.getElementById('btn-refresh-cloud-lib');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+          showToast('Refreshing cloud library...', 'info');
+          fetchCloudTracks();
+        });
+      }
+
+      // Save Supabase connection
+      const saveSbBtn = document.getElementById('btn-save-sb-config');
+      if (saveSbBtn) {
+        saveSbBtn.addEventListener('click', () => {
+          const url = document.getElementById('sb-input-url').value.trim();
+          const key = document.getElementById('sb-input-key').value.trim();
+          testAndSaveSupabaseConfig(url, key);
+        });
+      }
+
+      // Disconnect Supabase
+      const disconnectSbBtn = document.getElementById('btn-disconnect-sb');
+      if (disconnectSbBtn) {
+        disconnectSbBtn.addEventListener('click', () => {
+          if (confirm('Disconnect from Supabase?')) {
+            disconnectSupabase();
+          }
+        });
+      }
+
+      // Upload dropzone & input
+      const dropzone = document.getElementById('sb-upload-dropzone');
+      const fileInput = document.getElementById('sb-file-input');
+      if (dropzone && fileInput) {
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropzone.style.borderColor = '#10b981';
+        });
+        dropzone.addEventListener('dragleave', () => {
+          dropzone.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+        });
+        dropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropzone.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            uploadAudioFileToSupabase(e.dataTransfer.files[0]);
+          }
+        });
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files && e.target.files[0]) {
+            uploadAudioFileToSupabase(e.target.files[0]);
+            e.target.value = '';
+          }
+        });
+      }
+
+      initSupabase();
+
     })();
   </script>
 
@@ -4938,6 +5600,125 @@
   <div id="reaction-particles-container"></div>
 
   
+  </div>
+
+  
+  <!-- ==========================================================================
+       SUPABASE CLOUD DATABASE & AUDIO STORAGE MODAL
+       ========================================================================== -->
+  <div class="modal-backdrop" id="supabase-modal">
+    <div class="modal-card" style="max-width: 600px; width: 95%;">
+      <div class="modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+          <span>Supabase Cloud Database & Storage</span>
+        </h3>
+        <button class="btn-action btn-icon-only" id="btn-close-supabase-modal">✕</button>
+      </div>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 14px 0;">
+        Store audio files in cloud storage and track playlists permanently across all your devices.
+      </p>
+
+      <!-- Tabs Navigation -->
+      <div class="supabase-tabs">
+        <button class="supabase-tab-btn active" data-sb-tab="library">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span>Cloud Library</span>
+        </button>
+        <button class="supabase-tab-btn" data-sb-tab="upload">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span>Upload Song</span>
+        </button>
+        <button class="supabase-tab-btn" data-sb-tab="settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Connection & Setup</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: CLOUD LIBRARY -->
+      <div class="supabase-tab-content active" id="sb-pane-library">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <input type="text" id="sb-library-search" placeholder="Filter cloud songs by title or artist..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.82rem; padding: 8px 12px;">
+          <button class="btn-action" id="btn-refresh-cloud-lib" title="Refresh from database">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Refresh
+          </button>
+        </div>
+
+        <div id="sb-library-list" style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+          <div style="text-align: center; color: var(--text-dim); padding: 35px 15px; font-size: 0.85rem;">
+            Loading songs from Supabase...
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: UPLOAD TO CLOUD -->
+      <div class="supabase-tab-content" id="sb-pane-upload">
+        <div class="cloud-upload-dropzone" id="sb-upload-dropzone">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" style="margin-bottom: 8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <div style="font-weight: 700; font-size: 0.92rem; margin-bottom: 4px;">Click or Drag Audio Files to Upload</div>
+          <div style="font-size: 0.76rem; color: var(--text-dim);">MP3, WAV, FLAC, M4A, OGG supported. Automatically saved to Supabase storage.</div>
+        </div>
+        <input type="file" id="sb-file-input" accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg" style="display: none;">
+
+        <div id="sb-upload-status" style="margin-top: 14px; display: none;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; margin-bottom: 6px;">
+            <span id="sb-upload-filename">Uploading...</span>
+            <span id="sb-upload-percent">0%</span>
+          </div>
+          <div style="height: 6px; background: rgba(255,255,255,0.08); border-radius: var(--radius-full); overflow: hidden;">
+            <div id="sb-upload-bar" style="height: 100%; width: 0%; background: #10b981; transition: width 0.2s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: CONNECTION & SETUP -->
+      <div class="supabase-tab-content" id="sb-pane-settings">
+        <div id="sb-connection-badge" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(255,255,255,0.04); border: 1px solid var(--border-glass); margin-bottom: 14px; font-size: 0.82rem;">
+          <span class="cloud-status-dot" id="sb-settings-status-dot"></span>
+          <span id="sb-settings-status-text">Checking Supabase connection...</span>
+        </div>
+
+        <label class="cloud-config-label">Supabase Project URL</label>
+        <input type="text" class="cloud-config-input" id="sb-input-url" placeholder="https://your-project.supabase.co">
+
+        <label class="cloud-config-label">Supabase Anon Key (Public Key)</label>
+        <input type="password" class="cloud-config-input" id="sb-input-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+
+        <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 4px;">
+          <button class="btn-action" id="btn-disconnect-sb" style="color: #f87171;">Disconnect</button>
+          <button class="btn-primary" id="btn-save-sb-config" style="padding: 8px 18px; border-radius: var(--radius-md); font-weight: 700;">Save & Connect</button>
+        </div>
+
+        <!-- 1-Click SQL & Bucket Guide -->
+        <details style="margin-top: 18px; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 10px 14px; font-size: 0.78rem;">
+          <summary style="font-weight: 700; cursor: pointer; color: #34d399;">📋 1-Click Database SQL & Storage Setup Guide</summary>
+          <div style="margin-top: 10px; color: var(--text-dim); line-height: 1.5;">
+            <p><b>Step 1:</b> In your Supabase Dashboard, click <b>SQL Editor</b>, paste the script below, and click <b>Run</b>:</p>
+            <pre style="background: rgba(0,0,0,0.5); padding: 8px; border-radius: 6px; font-size: 0.72rem; overflow-x: auto; color: #a7f3d0; margin: 6px 0;" id="sb-sql-snippet">create table if not exists public.tracks (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  artist text default 'Unknown Artist',
+  album text default 'Single',
+  duration numeric default 0,
+  audio_url text not null,
+  cover_url text,
+  synced_lyrics text,
+  size_bytes bigint default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.tracks enable row level security;
+create policy "Allow public read" on public.tracks for select using (true);
+create policy "Allow public insert" on public.tracks for insert with check (true);
+create policy "Allow public delete" on public.tracks for delete using (true);</pre>
+            <p style="margin-top: 8px;"><b>Step 2:</b> Go to <b>Storage</b> -> <b>New Bucket</b> -> Name it <b>songs</b> -> Turn <b>Public bucket: ON</b>.</p>
+          </div>
+        </details>
+      </div>
+
+    </div>
   </div>
 
   <!-- Online Lyrics Search Modal (LRCLIB) -->
