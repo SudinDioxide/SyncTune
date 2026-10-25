@@ -2165,6 +2165,24 @@
       display: block;
     }
 
+  
+    .cross-network-pill {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      font-size: 0.76rem;
+      padding: 9px 12px;
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      line-height: 1.4;
+    }
+    .cross-network-pill svg {
+      flex-shrink: 0;
+    }
+
   </style>
 </head>
 <body data-theme="neon" data-mobile-view="player">
@@ -2484,7 +2502,15 @@
         <p>Listen together in real time across laptops, smartphones, and smart speakers.</p>
       </div>
 
-      <div class="room-tabs">
+      
+        <div class="cross-network-pill">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <div>
+            <strong>Cross-Network Sync: Enabled</strong><br>
+            <span style="font-size: 0.72rem; color: var(--text-dim);">Listeners on different WiFi networks or mobile 4G/5G can connect seamlessly via TURN Relay & Supabase Cloud.</span>
+          </div>
+        </div>
+        <div class="room-tabs">
         <button class="room-tab-btn active" data-tab="host">Host Room</button>
         <button class="room-tab-btn" data-tab="join">Join Room</button>
         <button class="room-tab-btn" data-tab="tabsync">Local Multi-Tab</button>
@@ -3056,7 +3082,18 @@
                 { urls: 'stun:stun.cloudflare.com:3478' },
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
+                { urls: 'stun:global.stun.twilio.com:3478' },
+                { urls: 'stun:openrelay.metered.ca:80' },
+                {
+                  urls: [
+                    'turn:openrelay.metered.ca:80',
+                    'turn:openrelay.metered.ca:443',
+                    'turn:openrelay.metered.ca:443?transport=tcp',
+                    'turns:openrelay.metered.ca:443?transport=tcp'
+                  ],
+                  username: 'openrelayproject',
+                  credential: 'openrelayproject'
+                }
               ],
               iceCandidatePoolSize: 4
             }
@@ -3069,6 +3106,7 @@
               currentRoomCode = id.replace('synctune-', '').toUpperCase();
               updateHostUI();
               updateSyncBadge('host', `Host: ${currentRoomCode}`);
+              joinSupabaseRoomChannel(currentRoomCode); // Cloud broadcast channel for cross-network peers
               showToast(`Room created! Code: ${currentRoomCode}`, 'success');
             }
           });
@@ -3201,6 +3239,9 @@
       }
 
       function joinRoomAsGuest(hostCode, nickname = 'Guest Device') {
+        const cleanCode = hostCode.replace(/^synctune-/i, '').toUpperCase();
+        currentRoomCode = cleanCode;
+        joinSupabaseRoomChannel(cleanCode); // Immediate cross-network cloud connection
         const targetPeerId = hostCode.startsWith('synctune-') ? hostCode : ('synctune-' + hostCode.toLowerCase());
         
         function initiateFastConnection() {
@@ -3299,16 +3340,76 @@
         ensureAudioStreamToPeer(hostConnection.peer);
       }
 
+      
+      /* ==========================================================================
+         CROSS-NETWORK HYBRID SYNC: SUPABASE REALTIME CHANNEL
+         ========================================================================== */
+      let supabaseRoomChannel = null;
+      const seenSyncPacketIds = new Set();
+
+      function joinSupabaseRoomChannel(roomCode) {
+        if (!supabaseClient || !roomCode) return;
+        const channelName = 'synctune_room_' + roomCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        if (supabaseRoomChannel) {
+          try { supabaseClient.removeChannel(supabaseRoomChannel); } catch(e) {}
+        }
+
+        try {
+          supabaseRoomChannel = supabaseClient.channel(channelName, {
+            config: { broadcast: { ack: false } }
+          });
+
+          supabaseRoomChannel.on('broadcast', { event: 'sync' }, (data) => {
+            if (data && data.payload) {
+              handleIncomingSyncPacket(data.payload, null);
+            }
+          });
+
+          supabaseRoomChannel.subscribe((status) => {
+            console.log(`Supabase Realtime cross-network status (${channelName}):`, status);
+            if (status === 'SUBSCRIBED') {
+              console.log('✓ Cross-network WebSocket cloud channel active!');
+              // If guest, request snapshot from host
+              if (!isHost) {
+                broadcastSyncPacket({
+                  type: 'REQUEST_SNAPSHOT',
+                  senderNick: 'Guest on Cloud Channel'
+                });
+              }
+            }
+          });
+        } catch(e) {
+          console.warn('Supabase Realtime channel setup error:', e);
+        }
+      }
+
       function broadcastSyncPacket(packet) {
+        if (!packet.msgId) {
+          packet.msgId = (myPeerId || 'peer') + '_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        }
         packet.senderId = myPeerId;
         packet.timestamp = performance.now();
 
+        // 1. Local same-device multi-tab BroadcastChannel
         if (broadcastChannel) {
           try {
             broadcastChannel.postMessage(packet);
           } catch(e) {}
         }
 
+        // 2. Cross-network Supabase Realtime Broadcast (over HTTPS WebSocket port 443)
+        if (supabaseRoomChannel) {
+          try {
+            supabaseRoomChannel.send({
+              type: 'broadcast',
+              event: 'sync',
+              payload: packet
+            });
+          } catch(e) {}
+        }
+
+        // 3. WebRTC DataChannel (Direct P2P or TURN relay)
         if (isHost && activeConnections.size > 0) {
           activeConnections.forEach((conn) => {
             if (conn.open) {
@@ -3330,6 +3431,17 @@
 
       function handleIncomingSyncPacket(data, sourceConn = null) {
         if (!data || data.senderId === myPeerId) return;
+
+        // Deduplicate packets arriving via both WebRTC and Supabase Realtime channel
+        if (data.msgId) {
+          if (seenSyncPacketIds.has(data.msgId)) return;
+          seenSyncPacketIds.add(data.msgId);
+          if (seenSyncPacketIds.size > 200) {
+            const arr = Array.from(seenSyncPacketIds).slice(100);
+            seenSyncPacketIds.clear();
+            arr.forEach(id => seenSyncPacketIds.add(id));
+          }
+        }
 
         // On host: relay incoming guest packets to all other peers in the room
         if (isHost && sourceConn) {
