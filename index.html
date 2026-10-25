@@ -3064,6 +3064,15 @@
         const cleanCode = hostCode.replace(/^synctune-/i, '').toUpperCase();
         currentRoomCode = cleanCode;
         joinSupabaseRoomChannel(cleanCode); // Immediate cross-network cloud connection
+
+        // Unload and clear local demo track so guest NEVER plays the 30-second synth demo in a room
+        if (audioElement) {
+          audioElement.pause();
+          audioElement.currentTime = 0;
+          audioElement.removeAttribute('src');
+          audioElement.load();
+        }
+        currentTrackIndex = -1;
         const targetPeerId = hostCode.startsWith('synctune-') ? hostCode : ('synctune-' + hostCode.toLowerCase());
         
         function initiateFastConnection() {
@@ -3502,7 +3511,7 @@
             console.log('Remote audio waiting for interaction:', err);
             showAudioUnlockOverlay();
           });
-        } else if (audioElement && audioElement.src) {
+        } else if (audioElement && audioElement.src && (!isHost ? (audioElement.src !== demoAudioBlobUrl) : true)) {
           // Playing direct file/cloud: stop remote stream completely
           if (rAudio) {
             rAudio.pause();
@@ -3551,7 +3560,6 @@
           applyRemoteTrackMetadata(data.trackMeta);
           let matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
           if (matchIdx === -1 && data.trackMeta.url) {
-            // Cloud track not in guest playlist: add it dynamically
             const cloudItem = {
               id: data.trackMeta.id || ('cloud_' + Date.now()),
               title: data.trackMeta.title,
@@ -3579,21 +3587,38 @@
       function applySyncSnapshot(data) {
         if (data.trackMeta) {
           applyRemoteTrackMetadata(data.trackMeta);
-          const matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+          let matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+
+          // If track has a direct cloud URL and is not in guest playlist, add it dynamically
+          if (matchIdx === -1 && data.trackMeta.url) {
+            playlist.unshift({
+              id: data.trackMeta.id || ('cloud_' + Date.now()),
+              title: data.trackMeta.title,
+              artist: data.trackMeta.artist,
+              album: data.trackMeta.album,
+              duration: data.trackMeta.duration,
+              url: data.trackMeta.url,
+              coverUrl: data.trackMeta.coverUrl || generateCoverPlaceholder(data.trackMeta.title),
+              isCloud: true,
+              isSynced: true
+            });
+            matchIdx = 0;
+          }
           currentTrackIndex = matchIdx;
           renderPlaylistUI();
+
+          // If cloud track, load it directly so guest streams the full real song
+          if (matchIdx >= 0 && playlist[matchIdx] && playlist[matchIdx].url) {
+            loadTrackIntoPlayer(playlist[matchIdx], !!data.isPlaying);
+          }
         }
 
         if (data.isPlaying) {
           setPlayingState(true);
-          if (!remoteSourceNode && !hostConnection && typeof data.currentTime === 'number') {
-            applySyncPlay(data.currentTime, data.hostTimestamp);
-          }
+          applySyncPlay(data.currentTime || 0, data.hostTimestamp);
         } else {
           setPlayingState(false);
-          if (!remoteSourceNode && !hostConnection && typeof data.currentTime === 'number') {
-            applySyncPause(data.currentTime);
-          }
+          applySyncPause(data.currentTime || 0);
         }
       }
 
@@ -4122,6 +4147,15 @@
       }
 
       function playNextTrack() {
+        // GUEST LOCK: In a room, only the Host controls the sequence!
+        // Guest devices must NEVER automatically advance or trigger song changes.
+        if (!isHost && hostConnection && hostConnection.open) {
+          console.log('Guest device: waiting for host to advance sequence.');
+          if (audioElement) audioElement.pause();
+          setPlayingState(false);
+          return;
+        }
+
         if (playlist.length === 0) {
           if (demoAudioBlobUrl) {
             if (loopMode === 'one' || loopMode === 'all') {
