@@ -2581,9 +2581,6 @@
       function broadcastSyncPacket(packet) {
         packet.senderId = myPeerId;
         packet.timestamp = performance.now();
-        if (!packet.trackMeta) {
-          packet.trackMeta = getCurrentTrackPayload();
-        }
 
         if (broadcastChannel) {
           try {
@@ -2604,21 +2601,14 @@
 
       function sendSyncPacketTo(conn, packet) {
         if (conn && conn.open) {
+          packet.senderId = myPeerId;
           packet.timestamp = performance.now();
-          if (!packet.trackMeta) {
-            packet.trackMeta = getCurrentTrackPayload();
-          }
           conn.send(packet);
         }
       }
 
       function handleIncomingSyncPacket(data, sourceConn = null) {
         if (!data || data.senderId === myPeerId) return;
-
-        // Apply incoming song title, artist, album, and cover art
-        if (data.trackMeta) {
-          applyRemoteTrackMetadata(data.trackMeta);
-        }
 
         // On host: relay incoming guest packets to all other peers in the room
         if (isHost && sourceConn) {
@@ -2743,10 +2733,24 @@
             break;
 
           case 'PLAY':
-            applySyncPlay(data.currentTime, data.timestamp);
+            if (data.trackMeta) {
+              applyRemoteTrackMetadata(data.trackMeta);
+              const matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+              currentTrackIndex = matchIdx;
+              renderPlaylistUI();
+            }
+            if (!remoteSourceNode && !hostConnection) {
+              applySyncPlay(data.currentTime, data.timestamp);
+            } else {
+              setPlayingState(true);
+            }
             break;
           case 'PAUSE':
-            applySyncPause(data.currentTime);
+            if (!remoteSourceNode && !hostConnection) {
+              applySyncPause(data.currentTime);
+            } else {
+              setPlayingState(false);
+            }
             break;
           case 'SEEK':
             applySyncSeek(data.currentTime);
@@ -2815,24 +2819,33 @@
       }
 
       function applySyncTrackChange(data) {
-        if (typeof data.trackIndex === 'number' && playlist[data.trackIndex]) {
-          playTrackAtIndex(data.trackIndex, false);
-        } else if (data.trackMeta) {
+        if (data.trackMeta) {
           applyRemoteTrackMetadata(data.trackMeta);
+          const matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+          currentTrackIndex = matchIdx;
+          renderPlaylistUI();
         }
+        setPlayingState(true);
       }
 
       function applySyncSnapshot(data) {
-        if (typeof data.trackIndex === 'number' && playlist[data.trackIndex]) {
-          playTrackAtIndex(data.trackIndex, false);
-        } else if (data.trackMeta) {
+        if (data.trackMeta) {
           applyRemoteTrackMetadata(data.trackMeta);
+          const matchIdx = playlist.findIndex(t => t.id === data.trackMeta.id || (t.title === data.trackMeta.title && t.artist === data.trackMeta.artist));
+          currentTrackIndex = matchIdx;
+          renderPlaylistUI();
         }
 
         if (data.isPlaying) {
-          applySyncPlay(data.currentTime, data.hostTimestamp);
+          setPlayingState(true);
+          if (!remoteSourceNode && !hostConnection && typeof data.currentTime === 'number') {
+            applySyncPlay(data.currentTime, data.hostTimestamp);
+          }
         } else {
-          applySyncPause(data.currentTime);
+          setPlayingState(false);
+          if (!remoteSourceNode && !hostConnection && typeof data.currentTime === 'number') {
+            applySyncPause(data.currentTime);
+          }
         }
       }
 
@@ -3036,8 +3049,9 @@
         updateStorageStatus();
         showToast(`Added ${addedCount} audio track(s) to library!`, 'success');
 
-        if (currentTrackIndex === -1 && playlist.length > 0) {
-          playTrackAtIndex(0);
+        // Only load the first track into the player UI if completely idle and NOT in a room
+        if (currentTrackIndex === -1 && playlist.length > 0 && !hostConnection && activeConnections.size === 0 && !isPlaying) {
+          loadTrackIntoPlayer(playlist[0], false);
         }
       }
 
