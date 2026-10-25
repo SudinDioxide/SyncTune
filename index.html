@@ -5123,7 +5123,8 @@
       function initSupabase() {
         const defaultSbUrl = 'https://lennntnwuxdryiphyfhr.supabase.co';
         const url = localStorage.getItem('synctune_sb_url') || defaultSbUrl;
-        const key = localStorage.getItem('synctune_sb_anon_key') || '';
+        const defaultSbKey = 'sb_publishable_I5ozOE3OnjaG_4nlt50mzQ_HaU446Ph';
+        const key = localStorage.getItem('synctune_sb_anon_key') || defaultSbKey;
 
         const urlInput = document.getElementById('sb-input-url');
         const keyInput = document.getElementById('sb-input-key');
@@ -5685,7 +5686,7 @@
         <input type="text" class="cloud-config-input" id="sb-input-url" placeholder="https://your-project.supabase.co" value="https://lennntnwuxdryiphyfhr.supabase.co">
 
         <label class="cloud-config-label">Supabase Anon Key (Public Key)</label>
-        <input type="password" class="cloud-config-input" id="sb-input-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        <input type="password" class="cloud-config-input" id="sb-input-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." value="sb_publishable_I5ozOE3OnjaG_4nlt50mzQ_HaU446Ph">
 
         <div style="display: flex; justify-content: space-between; gap: 8px; margin-top: 4px;">
           <button class="btn-action" id="btn-disconnect-sb" style="color: #f87171;">Disconnect</button>
