@@ -2754,6 +2754,8 @@
       let isHost = false;
       let activeConnections = new Map();
       let hostConnection = null;
+      const activeAudioCalls = new Map(); // peerId -> mediaCall (prevents duplicate renegotiation)
+      let minCalibRtt = Infinity;
       let remoteAudioElement = null;
 
       function getOrCreateRemoteAudioElement() {
@@ -2843,12 +2845,15 @@
         const chosenId = customId || ('synctune-' + Math.random().toString(36).substring(2, 9));
         try {
           peer = new Peer(chosenId, {
-            debug: 1,
+            debug: 0,
             config: {
               iceServers: [
+                { urls: 'stun:stun.cloudflare.com:3478' },
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-              ]
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:global.stun.twilio.com:3478' }
+              ],
+              iceCandidatePoolSize: 4
             }
           });
 
@@ -2958,7 +2963,7 @@
             trackMeta: getCurrentTrackPayload()
           });
 
-          // Send full playlist snapshot so guest immediately sees all songs
+          // Send ultra-lightweight playlist snapshot (strips heavy base64 to avoid WebRTC buffer congestion)
           if (playlist.length > 0) {
             sendSyncPacketTo(conn, {
               type: 'PLAYLIST_SNAPSHOT',
@@ -2970,16 +2975,14 @@
                 ext: t.ext,
                 format: t.format,
                 duration: t.duration,
-                coverUrl: t.coverUrl,
+                coverUrl: (t.coverUrl && t.coverUrl.length < 1500) ? t.coverUrl : generateProceduralCover(t.title),
                 isRemote: true
               }))
             });
           }
 
-          // Broadcast host audio stream to new peer
-          if (streamDestNode && streamDestNode.stream) {
-            peer.call(conn.peer, streamDestNode.stream);
-          }
+          // Establish real-time WebRTC audio call once without repeated renegotiation
+          ensureAudioStreamToPeer(conn.peer);
         });
 
         conn.on('data', (data) => {
@@ -2995,15 +2998,11 @@
       function joinRoomAsGuest(hostCode, nickname = 'Guest Device') {
         const targetPeerId = hostCode.startsWith('synctune-') ? hostCode : ('synctune-' + hostCode.toLowerCase());
         
-        if (!peer || peer.destroyed) {
-          initPeerJS();
-        }
-
-        setTimeout(() => {
-          if (!peer) return;
+        function initiateFastConnection() {
+          if (!peer || peer.destroyed) return;
           showToast(`Connecting to room ${hostCode}...`, 'info');
           const conn = peer.connect(targetPeerId, {
-            reliable: true,
+            reliable: false, // Low-latency fast UDP-like transport
             metadata: { nickname: nickname }
           });
 
@@ -3014,9 +3013,21 @@
             showToast(`Connected to Host ${hostCode}!`, 'success');
             document.getElementById('room-modal').classList.remove('open');
 
-            conn.send({ type: 'PING', clientTime: performance.now() });
+            // Rapid 4-sample NTP burst for microsecond clock alignment
+            minCalibRtt = Infinity;
+            for (let i = 0; i < 4; i++) {
+              setTimeout(() => {
+                if (conn && conn.open) {
+                  conn.send({
+                    type: 'PING',
+                    clientTime: performance.now(),
+                    isCalib: true
+                  });
+                }
+              }, i * 35);
+            }
 
-            // Share guest's existing tracks with host so host and room know about them
+            // Share guest's existing tracks with host without bloating WebRTC channel
             if (playlist.length > 0) {
               sendSyncPacketTo(conn, {
                 type: 'PLAYLIST_SNAPSHOT',
@@ -3028,7 +3039,7 @@
                   ext: t.ext,
                   format: t.format,
                   duration: t.duration,
-                  coverUrl: t.coverUrl,
+                  coverUrl: (t.coverUrl && t.coverUrl.length < 1500) ? t.coverUrl : generateProceduralCover(t.title),
                   isRemote: true,
                   originPeerId: myPeerId
                 }))
@@ -3050,7 +3061,37 @@
             console.error('Connection error:', err);
             showToast('Failed to connect to room. Check code.', 'warning');
           });
-        }, 500);
+        }
+
+        if (peer && peer.open) {
+          initiateFastConnection();
+        } else {
+          initPeerJS();
+          peer.once('open', () => initiateFastConnection());
+        }
+      }
+
+      function ensureAudioStreamToPeer(targetPeerId) {
+        if (!streamDestNode || !streamDestNode.stream) return;
+        if (activeAudioCalls.has(targetPeerId)) {
+          const call = activeAudioCalls.get(targetPeerId);
+          if (call && call.open) return; // Stream already active and connected
+        }
+        try {
+          const call = peer.call(targetPeerId, streamDestNode.stream);
+          if (call) {
+            activeAudioCalls.set(targetPeerId, call);
+            call.on('close', () => activeAudioCalls.delete(targetPeerId));
+            call.on('error', () => activeAudioCalls.delete(targetPeerId));
+          }
+        } catch(e) {
+          console.warn('Audio call error:', e);
+        }
+      }
+
+      function ensureAudioStreamToHost() {
+        if (isHost || !hostConnection || !hostConnection.open) return;
+        ensureAudioStreamToPeer(hostConnection.peer);
       }
 
       function broadcastSyncPacket(packet) {
@@ -3189,6 +3230,11 @@
               const arrayBuf = base64ToArrayBuffer(data.chunkData || data.chunk);
               job.chunks[data.chunkIndex] = arrayBuf;
               job.receivedCount++;
+              if (data.trackId && job.receivedCount % 3 === 0) {
+                const pct = Math.round((job.receivedCount / job.totalChunks) * 100);
+                const syncBadge = document.querySelector(`[data-sync-badge="${data.trackId}"]`);
+                if (syncBadge) syncBadge.textContent = `☁ ${pct}%`;
+              }
             }
             break;
 
@@ -3258,16 +3304,27 @@
               sourceConn.send({
                 type: 'PONG',
                 clientTime: data.clientTime,
-                serverTime: performance.now()
+                serverTime: performance.now(),
+                isCalib: data.isCalib || false
               });
             }
             break;
           case 'PONG':
             const now = performance.now();
             const rtt = now - data.clientTime;
-            clockOffset = (data.serverTime - (data.clientTime + rtt / 2));
-            const latencyMs = Math.round(rtt / 2);
-            document.getElementById('sync-latency-text').textContent = `Latency: ${latencyMs}ms`;
+            const currentOffset = (data.serverTime - (data.clientTime + rtt / 2));
+            if (data.isCalib) {
+              if (rtt < minCalibRtt) {
+                minCalibRtt = rtt;
+                clockOffset = currentOffset;
+              }
+            } else {
+              // Smooth exponential moving average for continuous sync without jumps
+              clockOffset = clockOffset * 0.75 + currentOffset * 0.25;
+            }
+            const latencyMs = Math.max(1, Math.round(rtt / 2));
+            const latencyEl = document.getElementById('sync-latency-text');
+            if (latencyEl) latencyEl.textContent = `Latency: ${latencyMs}ms`;
             break;
         }
       }
@@ -3727,7 +3784,7 @@
 
         reader.onload = function(e) {
           const arrayBuffer = e.target.result;
-          const chunkSize = 32768; // 32KB safe WebRTC chunk size
+          const chunkSize = 65536; // 64KB high-speed chunks
           const totalChunks = Math.ceil(arrayBuffer.byteLength / chunkSize);
           const transferId = 'xfer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
 
@@ -3751,10 +3808,10 @@
             }
           });
 
-          // 2. Stream chunks sequentially
+          // 2. Stream high-speed 64KB chunks with microtask batching
           let chunkIdx = 0;
           function sendChunksBatch() {
-            const batchSize = 4;
+            const batchSize = 6;
             for (let i = 0; i < batchSize && chunkIdx < totalChunks; i++) {
               const start = chunkIdx * chunkSize;
               const end = Math.min(arrayBuffer.byteLength, start + chunkSize);
@@ -3765,17 +3822,20 @@
                 type: 'FILE_CHUNK',
                 transferId: transferId,
                 chunkIndex: chunkIdx,
-                chunkData: b64Data
+                chunkData: b64Data,
+                totalChunks: totalChunks,
+                trackId: track.id
               });
               chunkIdx++;
             }
 
             if (chunkIdx < totalChunks) {
-              setTimeout(sendChunksBatch, 25);
+              setTimeout(sendChunksBatch, 4);
             } else {
               broadcastSyncPacket({
                 type: 'FILE_COMPLETE',
-                transferId: transferId
+                transferId: transferId,
+                trackId: track.id
               });
             }
           }
@@ -3930,13 +3990,12 @@
             audioElement.play().then(() => {
               setPlayingState(true);
 
-              // If outsider guest plays local track, stream WebRTC audio to host
-              if (!isHost && hostConnection && streamDestNode && streamDestNode.stream) {
-                peer.call(hostConnection.peer, streamDestNode.stream);
-              } else if (isHost && activeConnections.size > 0 && streamDestNode && streamDestNode.stream) {
-                // If host plays, stream to all guests
+              // Seamless stream continuity without tear-down renegotiations
+              if (!isHost) {
+                ensureAudioStreamToHost();
+              } else {
                 activeConnections.forEach(conn => {
-                  if (conn.open) peer.call(conn.peer, streamDestNode.stream);
+                  if (conn.open) ensureAudioStreamToPeer(conn.peer);
                 });
               }
 
@@ -3998,15 +4057,13 @@
         if (audioElement.paused) {
           audioElement.play().then(() => {
             setPlayingState(true);
-            // Ensure WebRTC stream is flowing to room peers
-            if (isHost && activeConnections.size > 0 && streamDestNode && streamDestNode.stream) {
+            // Seamless stream continuity
+            if (isHost) {
               activeConnections.forEach(conn => {
-                if (conn.open) {
-                  try { peer.call(conn.peer, streamDestNode.stream); } catch(e) {}
-                }
+                if (conn.open) ensureAudioStreamToPeer(conn.peer);
               });
-            } else if (!isHost && hostConnection && streamDestNode && streamDestNode.stream) {
-              try { peer.call(hostConnection.peer, streamDestNode.stream); } catch(e) {}
+            } else {
+              ensureAudioStreamToHost();
             }
 
             broadcastSyncPacket({
@@ -4253,7 +4310,7 @@
                 <div class="track-artist">
                   <span>${escapeHtml(track.artist)}</span>
                   <span class="track-ext-pill">${escapeHtml(track.ext || 'AUD')}</span>
-                  ${track.isRemote ? '<span class="track-badge-remote">☁ Room</span>' : (track.isSynced ? '<span class="track-badge-synced">✓ Synced</span>' : '')}
+                  ${track.isRemote ? `<span class="track-badge-remote" data-sync-badge="${track.id}">☁ Room</span>` : (track.isSynced ? '<span class="track-badge-synced">✓ Synced</span>' : '')}
                 </div>
               </div>
               <div class="track-trailing">
@@ -4726,6 +4783,13 @@
        * ------------------------------------------------------------------------ */
       async function initializeApp() {
         setupEventListeners();
+
+        // 3-second recurring background NTP sync heartbeat
+        setInterval(() => {
+          if (!isHost && hostConnection && hostConnection.open) {
+            hostConnection.send({ type: 'PING', clientTime: performance.now() });
+          }
+        }, 3000);
         renderVisualizerLoop();
 
         try {
